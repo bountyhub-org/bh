@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set release version
+        run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+
+      - name: Display release version
+        run: |
+          echo "Version is: $VERSION"
+
+      - name: Check the Cargo.toml version
+        run: |
+          if ! grep -q "version = \"$VERSION\"" Cargo.toml; then
+            echo "Cargo.toml version does not match the release version" >&2
+            exit 1
+          fi
+
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$VERSION" --draft --verify-tag --title "$VERSION"
+    outputs:
+      version: ${{ env.VERSION }}
+
+  build-release:
+    needs:
+    - create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            rust: stable
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Build release
+        run: |
+          cargo build --release --verbose --target ${{ matrix.target }}
+          echo "BIN=target/${{ matrix.target }}/release/bh" >> $GITHUB_ENV
+
+      - name: Set archive name
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          echo "ARCHIVE=bh-$version-${{ matrix.target }}" >> $GITHUB_ENV
+
+      - name: Create archive directory
+        run: |
+          mkdir -p "$ARCHIVE"
+          cp "$BIN" "$ARCHIVE"/
+          cp README.md LICENSE "$ARCHIVE"/
+
+      - name: Archive release
+        run: |
+          tar -czf "$ARCHIVE".tar.gz "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE".tar.gz > "$ARCHIVE".tar.gz.sha256
+          echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
+          echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
+
+      - name: Upload release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          gh release upload "$version" "$ASSET" "$ASSET_SUM"
+

@@ -16,6 +16,14 @@ pub trait Client {
         revision_id: &str,
         job_id: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
+
+    fn delete_job(
+        &self,
+        project_id: &str,
+        workflow_id: &str,
+        revision_id: &str,
+        job_id: &str,
+    ) -> Result<(), ClientError>;
 }
 
 pub struct HTTPClient {
@@ -80,6 +88,27 @@ impl Client for HTTPClient {
             .attach_printable("Failed to download file")?;
 
         Ok(res.into_reader())
+    }
+
+    fn delete_job(
+        &self,
+        project_id: &str,
+        workflow_id: &str,
+        revision_id: &str,
+        job_id: &str,
+    ) -> Result<(), ClientError> {
+        let url = format!(
+            "{0}/v1/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}",
+            self.domain
+        );
+
+        self.agent
+            .delete(url.as_str())
+            .set("Authorization", self.authorization.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to delete job")?;
+        Ok(())
     }
 }
 

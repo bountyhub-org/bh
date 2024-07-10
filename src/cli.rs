@@ -126,6 +126,26 @@ enum Job {
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
     },
+
+    #[clap(name = "delete")]
+    #[clap(about = "Delete a job")]
+    Delete {
+        #[clap(short, long)]
+        #[clap(required = true)]
+        project_id: String,
+
+        #[clap(short, long)]
+        #[clap(required = true)]
+        workflow_id: String,
+
+        #[clap(short, long)]
+        #[clap(required = true)]
+        revision_id: String,
+
+        #[clap(short, long)]
+        #[clap(required = true)]
+        job_id: String,
+    },
 }
 
 impl Job {
@@ -168,6 +188,17 @@ impl Job {
                 std::io::copy(&mut *freader, &mut fwriter)
                     .change_context(CliError)
                     .attach_printable("failed to write file")?;
+            }
+            Job::Delete {
+                project_id,
+                workflow_id,
+                revision_id,
+                job_id,
+            } => {
+                client
+                    .delete_job(project_id, workflow_id, revision_id, job_id)
+                    .change_context(CliError)
+                    .attach_printable("Failed to delete job")?;
             }
         }
 

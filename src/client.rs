@@ -68,7 +68,7 @@ impl Client for HTTPClient {
         revision_id: &str,
         job_id: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
-        let url = format!("{0}/v1/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}/result", self.domain);
+        let url = format!("{0}/api/v1/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}/result", self.domain);
         let FileResult { url } = self
             .agent
             .get(url.as_str())
@@ -98,7 +98,7 @@ impl Client for HTTPClient {
         job_id: &str,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/v1/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}",
+            "{0}/api/v1/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}",
             self.domain
         );
 

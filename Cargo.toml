@@ -11,12 +11,12 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.7", features = ["derive"] }
-error-stack = "0.4.1"
-ureq = { version = "2.9.7", features = ["json"] }
-serde = { version = "1.0.203", features = ["derive"] }
-clap_complete = { version = "4.5.6" }
+clap = { version = "^4", features = ["derive"] }
+error-stack = "0.5.0"
+ureq = { version = "^2", features = ["json"] }
+serde = { version = "^1", features = ["derive"] }
+clap_complete = { version = "^4" }
 
 [dev-dependencies]
-ulid = "1.1.2"
-mockall = "0.12.1"
+ulid = "^1"
+mockall = "0.13.0"

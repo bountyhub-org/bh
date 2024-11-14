@@ -243,23 +243,15 @@ mod job_tests {
 #[derive(Args, Debug)]
 struct Completion {
     #[arg(value_enum)]
-    shell: Option<Shell>,
+    shell: Shell,
 }
 
 impl Completion {
     fn run(&self) -> Result<(), CliError> {
         let mut cmd = Cli::command();
         let name = cmd.get_name().to_string();
-        match self.shell {
-            Some(shell) => {
-                generate(shell, &mut cmd, name, &mut io::stdout());
-            }
-            None => {
-                cmd.print_help()
-                    .change_context(CliError)
-                    .attach_printable("Failed to print help")?;
-            }
-        }
+
+        generate(self.shell, &mut cmd, name, &mut io::stdout());
 
         Ok(())
     }

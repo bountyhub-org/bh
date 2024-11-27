@@ -28,30 +28,40 @@ pub trait Client {
 
 pub struct HTTPClient {
     authorization: String,
-    agent: Agent,
-    domain: String,
+    bountyhub_domain: String,
+    bountyhub_agent: Agent,
+    file_agent: Agent,
 }
 
 impl HTTPClient {
-    pub fn new(domain: &str, token: &str, version: &str) -> Self {
-        let agent = ureq::builder()
+    pub fn new(bountyhub_domain: &str, pat: &str, version: &str) -> Self {
+        let ua = format!("bh/{}", version);
+        let bountyhub_agent = ureq::builder()
             .timeout(Duration::from_secs(10))
-            .user_agent(format!("bh/{}", version).as_str())
+            .user_agent(ua.as_str())
             .timeout_connect(Duration::from_secs(10))
             .timeout_read(Duration::from_secs(10))
             .timeout_write(Duration::from_secs(10))
             .build();
+        let file_agent = ureq::builder()
+            .timeout(Duration::from_secs(240))
+            .user_agent(ua.as_str())
+            .timeout_connect(Duration::from_secs(10))
+            .timeout_read(Duration::from_secs(240))
+            .timeout_write(Duration::from_secs(10))
+            .build();
 
         Self {
-            authorization: format!("Bearer {}", token),
-            agent,
-            domain: domain.to_string(),
+            authorization: format!("Bearer {}", pat),
+            bountyhub_domain: bountyhub_domain.to_string(),
+            bountyhub_agent,
+            file_agent,
         }
     }
 
     #[cfg(test)]
-    pub fn domain(&self) -> String {
-        self.domain.clone()
+    pub fn bountyhub_domain(&self) -> String {
+        self.bountyhub_domain.clone()
     }
 
     #[cfg(test)]
@@ -68,9 +78,9 @@ impl Client for HTTPClient {
         revision_id: &str,
         job_id: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
-        let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}/result", self.domain);
+        let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
         let FileResult { url } = self
-            .agent
+            .bountyhub_agent
             .get(url.as_str())
             .set("Authorization", self.authorization.as_str())
             .call()
@@ -81,7 +91,7 @@ impl Client for HTTPClient {
             .attach_printable("Failed to parse response")?;
 
         let res = self
-            .agent
+            .file_agent
             .get(url.as_str())
             .call()
             .change_context(ClientError)
@@ -99,10 +109,10 @@ impl Client for HTTPClient {
     ) -> Result<(), ClientError> {
         let url = format!(
             "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}",
-            self.domain
+            self.bountyhub_domain
         );
 
-        self.agent
+        self.bountyhub_agent
             .delete(url.as_str())
             .set("Authorization", self.authorization.as_str())
             .call()

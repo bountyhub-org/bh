@@ -61,16 +61,16 @@ impl Commands {
 }
 
 fn new_client() -> Result<HTTPClient, CliError> {
-    let token = match env::var("BOUNTYHUB_TOKEN") {
+    let pat = match env::var("BOUNTYHUB_TOKEN") {
         Ok(token) => token,
         Err(err) => {
             return Err(CliError).attach_printable(format!("Failed to get token: {:?}", err));
         }
     };
 
-    let domain = env::var("BOUNTYHUB_DOMAIN").unwrap_or("https://bountyhub.org".to_string());
+    let bountyhub = env::var("BOUNTYHUB_DOMAIN").unwrap_or("https://bountyhub.org".to_string());
 
-    Ok(HTTPClient::new(&domain, &token, env!("CARGO_PKG_VERSION")))
+    Ok(HTTPClient::new(&bountyhub, &pat, env!("CARGO_PKG_VERSION")))
 }
 
 #[cfg(test)]
@@ -90,13 +90,13 @@ mod new_client_tests {
         env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(client.domain(), "https://bountyhub.org");
+        assert_eq!(client.bountyhub_domain(), "https://bountyhub.org");
 
         env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
         env::set_var("BOUNTYHUB_DOMAIN", "https://my-custom-bountyhub.org");
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(client.domain(), "https://my-custom-bountyhub.org");
+        assert_eq!(client.bountyhub_domain(), "https://my-custom-bountyhub.org");
     }
 }
 

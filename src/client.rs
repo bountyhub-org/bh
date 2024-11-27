@@ -78,7 +78,7 @@ impl Client for HTTPClient {
         revision_id: &str,
         job_id: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
-        let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
+        let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
         let FileResult { url } = self
             .bountyhub_agent
             .get(url.as_str())
@@ -108,7 +108,7 @@ impl Client for HTTPClient {
         job_id: &str,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/rev/{revision_id}/jobs/{job_id}",
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}",
             self.bountyhub_domain
         );
 

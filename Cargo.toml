@@ -12,11 +12,11 @@ readme = "README.md"
 
 [dependencies]
 clap = { version = "^4", features = ["derive"] }
-error-stack = "0.5.0"
+error-stack = "^0.5"
 ureq = { version = "^2", features = ["json"] }
 serde = { version = "^1", features = ["derive"] }
 clap_complete = { version = "^4" }
 
 [dev-dependencies]
 ulid = "^1"
-mockall = "0.13.0"
+mockall = "^0.13"

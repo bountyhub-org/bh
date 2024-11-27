@@ -62,7 +62,14 @@ impl Commands {
 
 fn new_client() -> Result<HTTPClient, CliError> {
     let pat = match env::var("BOUNTYHUB_TOKEN") {
-        Ok(token) => token,
+        Ok(token) => {
+            if !token.starts_with("bhv") {
+                return Err(CliError)
+                    .attach_printable("Invalid token format")
+                    .attach_printable("token does not start with bhv");
+            }
+            token
+        }
         Err(err) => {
             return Err(CliError).attach_printable(format!("Failed to get token: {:?}", err));
         }
@@ -97,6 +104,9 @@ mod new_client_tests {
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
         assert_eq!(client.bountyhub_domain(), "https://my-custom-bountyhub.org");
+
+        env::set_var("BOUNTYHUB_TOKEN", "example");
+        assert!(new_client().is_err());
     }
 }
 

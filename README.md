@@ -13,6 +13,12 @@ and use it in your pipeline.
 
 ## Installation
 
+### Install from [crates.io](https://crates.io/crates/bh)
+
+```bash
+cargo install bh
+```
+
 ### Install using a release
 
 1. Download the latest release from the [releases page](https://github.com/bountyhub-org/bh/releases)

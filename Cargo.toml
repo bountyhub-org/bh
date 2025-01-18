@@ -20,3 +20,8 @@ clap_complete = { version = "^4" }
 [dev-dependencies]
 ulid = "^1"
 mockall = "^0.13"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3

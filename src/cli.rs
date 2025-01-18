@@ -9,6 +9,10 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+/// The bh is a command line interface for BountyHub API
+/// It allows you to interact with the BountyHub API from the command line
+/// The CLI requires a token to be set in the BOUNTYHUB_TOKEN environment variable
+/// The token should start with `bhv`
 #[derive(Parser, Debug)]
 #[command(version, about)]
 pub struct Cli {

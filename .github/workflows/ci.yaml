@@ -1,34 +1,63 @@
-name: Release
+name: Check
+
+permissions:
+  contents: read
 
 on:
   push:
     branches:
       - main
   pull_request:
-    branches:
-      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  fmt:
+    runs-on: ubuntu-latest
+    name: stable / fmt
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+  clippy:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.toolchain }} / clippy
+    permissions:
+      contents: read
+      checks: write
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            rust: stable
-    runs-on: ${{ matrix.os }}
+        toolchain: [stable, beta]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install rust
+      - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-
-      - name: Run build
-        run: cargo build --release --verbose
-
-      - name: Run tests
-        run: cargo test --verbose
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+      - name: cargo clippy
+        uses: giraffate/clippy-action@v1
+        with:
+          reporter: github-pr-check
+  tests:
+    runs-on: ubuntu-latest
+    name: ubuntu / ${{ matrix.toolchain }}
+    strategy:
+      matrix:
+        toolchain: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: cargo test --locked
+        run: cargo test --locked --all-features --all-targets
+      - name: cargo test --doc
+        run: cargo test --locked --all-features --doc

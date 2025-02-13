@@ -6,23 +6,24 @@ use std::fmt;
 use std::io::Read;
 use std::time::Duration;
 use ureq::Agent;
+use uuid::Uuid;
 
 #[cfg_attr(test, automock)]
 pub trait Client {
     fn download_job_result_file(
         &self,
-        project_id: &str,
-        workflow_id: &str,
-        revision_id: &str,
-        job_id: &str,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
     fn delete_job(
         &self,
-        project_id: &str,
-        workflow_id: &str,
-        revision_id: &str,
-        job_id: &str,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
     ) -> Result<(), ClientError>;
 }
 
@@ -73,10 +74,10 @@ impl HTTPClient {
 impl Client for HTTPClient {
     fn download_job_result_file(
         &self,
-        project_id: &str,
-        workflow_id: &str,
-        revision_id: &str,
-        job_id: &str,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
         let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
         let FileResult { url } = self
@@ -102,10 +103,10 @@ impl Client for HTTPClient {
 
     fn delete_job(
         &self,
-        project_id: &str,
-        workflow_id: &str,
-        revision_id: &str,
-        job_id: &str,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
     ) -> Result<(), ClientError> {
         let url = format!(
             "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}",

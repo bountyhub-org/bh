@@ -8,6 +8,7 @@ use std::env;
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 /// The bh is a command line interface for BountyHub API
 /// It allows you to interact with the BountyHub API from the command line
@@ -38,17 +39,21 @@ impl Cli {
     }
 }
 
+/// `bh` commands
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Job related commands rely on `BOUNTYHUB_TOKEN` and `BOUNTYHUB_URL`
+    /// environment variables.
     #[command(subcommand)]
     Job(Job),
 
+    /// Shell completion commands
     #[command(arg_required_else_help = true)]
     Completion(Completion),
 }
 
 impl Commands {
-    fn run(&self) -> Result<(), CliError> {
+    fn run(self) -> Result<(), CliError> {
         if let Commands::Completion(completion) = self {
             completion.run()?;
             return Ok(());
@@ -79,7 +84,7 @@ fn new_client() -> Result<HTTPClient, CliError> {
         }
     };
 
-    let bountyhub = env::var("BOUNTYHUB_DOMAIN").unwrap_or("https://bountyhub.org".to_string());
+    let bountyhub = env::var("BOUNTYHUB_URL").unwrap_or("https://bountyhub.org".to_string());
 
     Ok(HTTPClient::new(&bountyhub, &pat, env!("CARGO_PKG_VERSION")))
 }
@@ -90,7 +95,7 @@ mod new_client_tests {
 
     fn unset_env() {
         env::remove_var("BOUNTYHUB_TOKEN");
-        env::remove_var("BOUNTYHUB_DOMAIN");
+        env::remove_var("BOUNTYHUB_URL");
     }
 
     #[test]
@@ -104,7 +109,7 @@ mod new_client_tests {
         assert_eq!(client.bountyhub_domain(), "https://bountyhub.org");
 
         env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
-        env::set_var("BOUNTYHUB_DOMAIN", "https://my-custom-bountyhub.org");
+        env::set_var("BOUNTYHUB_URL", "https://my-custom-bountyhub.org");
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
         assert_eq!(client.bountyhub_domain(), "https://my-custom-bountyhub.org");
@@ -114,6 +119,7 @@ mod new_client_tests {
     }
 }
 
+/// Job based commands
 #[derive(Subcommand, Debug)]
 enum Job {
     #[clap(name = "download")]
@@ -121,19 +127,19 @@ enum Job {
     Download {
         #[clap(short, long)]
         #[clap(required = true)]
-        project_id: String,
+        project_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        workflow_id: String,
+        workflow_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        revision_id: String,
+        revision_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        job_id: String,
+        job_id: Uuid,
 
         #[clap(short, long)]
         #[clap(short, long)]
@@ -146,24 +152,24 @@ enum Job {
     Delete {
         #[clap(short, long)]
         #[clap(required = true)]
-        project_id: String,
+        project_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        workflow_id: String,
+        workflow_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        revision_id: String,
+        revision_id: Uuid,
 
         #[clap(short, long)]
         #[clap(required = true)]
-        job_id: String,
+        job_id: Uuid,
     },
 }
 
 impl Job {
-    fn run<C>(&self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<(), CliError>
     where
         C: Client,
     {
@@ -179,7 +185,7 @@ impl Job {
                     Some(output) => {
                         let output = PathBuf::from(output);
                         if output.is_dir() {
-                            output.join(job_id)
+                            output.join(job_id.to_string())
                         } else {
                             output
                         }
@@ -187,7 +193,7 @@ impl Job {
                     None => env::current_dir()
                         .change_context(CliError)
                         .attach_printable("Failed to get current directory")?
-                        .join(job_id),
+                        .join(job_id.to_string()),
                 };
 
                 let mut freader = client
@@ -226,20 +232,20 @@ mod job_tests {
     use crate::client::{ClientError, MockClient};
     use error_stack::Report;
     use mockall::predicate::*;
-    use ulid::Ulid;
+    use uuid::Uuid;
 
     #[test]
     fn test_download_failed() {
-        let project_id = Ulid::new().to_string();
-        let workflow_id = Ulid::new().to_string();
-        let revision_id = Ulid::new().to_string();
-        let job_id = Ulid::new().to_string();
+        let project_id = Uuid::now_v7();
+        let workflow_id = Uuid::now_v7();
+        let revision_id = Uuid::now_v7();
+        let job_id = Uuid::now_v7();
 
-        let job = Job::Download {
-            project_id: project_id.clone(),
-            workflow_id: workflow_id.clone(),
-            revision_id: revision_id.clone(),
-            job_id: job_id.clone(),
+        let cmd = Job::Download {
+            project_id,
+            workflow_id,
+            revision_id,
+            job_id,
             output: None,
         };
         let mut client = MockClient::new();
@@ -249,8 +255,33 @@ mod job_tests {
             .times(1)
             .returning(|_, _, _, _| Err(Report::new(ClientError)));
 
-        let result = job.run(client);
-        assert!(result.is_err());
+        let result = cmd.run(client);
+        assert!(result.is_err(), "expected error, got ok");
+    }
+
+    #[test]
+    fn test_delete_job_call() {
+        let project_id = Uuid::now_v7();
+        let workflow_id = Uuid::now_v7();
+        let revision_id = Uuid::now_v7();
+        let job_id = Uuid::now_v7();
+
+        let cmd = Job::Delete {
+            project_id,
+            workflow_id,
+            revision_id,
+            job_id,
+        };
+
+        let mut client = MockClient::new();
+        client
+            .expect_delete_job()
+            .with(eq(project_id), eq(workflow_id), eq(revision_id), eq(job_id))
+            .times(1)
+            .returning(|_, _, _, _| Ok(()));
+
+        let result = cmd.run(client);
+        assert!(result.is_ok(), "expected ok, got {result:?}");
     }
 }
 

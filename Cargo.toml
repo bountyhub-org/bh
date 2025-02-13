@@ -16,9 +16,10 @@ error-stack = "^0.5"
 ureq = { version = "^2", features = ["json", "native-certs"] }
 serde = { version = "^1", features = ["derive"] }
 clap_complete = { version = "^4" }
+uuid = "^1"
 
 [dev-dependencies]
-ulid = "^1"
+uuid = { version = "^1", features = ["v7"]}
 mockall = "^0.13"
 
 [profile.release]

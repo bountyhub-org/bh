@@ -79,6 +79,7 @@ dependencies = [
  "error-stack",
  "mockall",
  "serde",
+ "serde_json",
  "ureq",
  "uuid",
 ]

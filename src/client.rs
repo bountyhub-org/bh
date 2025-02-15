@@ -1,4 +1,4 @@
-use error_stack::{Context, Result, ResultExt};
+use error_stack::{Context, Report, Result, ResultExt};
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
@@ -153,13 +153,18 @@ impl Client for HTTPClient {
             self.bountyhub_domain
         );
 
-        self.bountyhub_agent
+        match self
+            .bountyhub_agent
             .post(url.as_str())
             .set("Authorization", self.authorization.as_str())
             .send_json(DispatchScanRequest { scan_name, inputs })
-            .change_context(ClientError)
-            .attach_printable("Failed to delete job")?;
-        Ok(())
+        {
+            Ok(_) => Ok(()),
+            Err(ureq::Error::Status(409, _)) => {
+                Err(Report::new(ClientError).attach_printable("Scan is already scheduled"))
+            }
+            Err(e) => Err(Report::new(ClientError).attach_printable(e.to_string())),
+        }
     }
 }
 

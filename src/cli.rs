@@ -129,24 +129,23 @@ enum Job {
     #[clap(name = "download")]
     #[clap(about = "Download a file from the internet")]
     Download {
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
         #[clap(required = true)]
         project_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
         #[clap(required = true)]
         workflow_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
         #[clap(required = true)]
         revision_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
 
-        #[clap(short, long)]
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
     },
@@ -154,19 +153,19 @@ enum Job {
     #[clap(name = "delete")]
     #[clap(about = "Delete a job")]
     Delete {
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
         #[clap(required = true)]
         project_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
         #[clap(required = true)]
         workflow_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
         #[clap(required = true)]
         revision_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
     },
@@ -233,19 +232,19 @@ impl Job {
 #[derive(Subcommand, Debug, Clone)]
 enum Scan {
     Dispatch {
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
         #[clap(required = true)]
         project_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
         #[clap(required = true)]
         workflow_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
         #[clap(required = true)]
         revision_id: Uuid,
 
-        #[clap(short, long)]
+        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
         #[clap(required = true)]
         scan_name: String,
 

@@ -1,12 +1,21 @@
-use error_stack::{Context, Result, ResultExt};
+use error_stack::{Context, Report, Result, ResultExt};
 #[cfg(test)]
 use mockall::automock;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::io::Read;
 use std::time::Duration;
 use ureq::Agent;
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DispatchScanRequest {
+    pub scan_name: String,
+    pub inputs: Option<BTreeMap<String, Value>>,
+}
 
 #[cfg_attr(test, automock)]
 pub trait Client {
@@ -24,6 +33,15 @@ pub trait Client {
         workflow_id: Uuid,
         revision_id: Uuid,
         job_id: Uuid,
+    ) -> Result<(), ClientError>;
+
+    fn dispatch_scan(
+        &self,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        scan_name: String,
+        inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError>;
 }
 
@@ -120,6 +138,33 @@ impl Client for HTTPClient {
             .change_context(ClientError)
             .attach_printable("Failed to delete job")?;
         Ok(())
+    }
+
+    fn dispatch_scan(
+        &self,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        scan_name: String,
+        inputs: Option<BTreeMap<String, Value>>,
+    ) -> Result<(), ClientError> {
+        let url = format!(
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/dispatch",
+            self.bountyhub_domain
+        );
+
+        match self
+            .bountyhub_agent
+            .post(url.as_str())
+            .set("Authorization", self.authorization.as_str())
+            .send_json(DispatchScanRequest { scan_name, inputs })
+        {
+            Ok(_) => Ok(()),
+            Err(ureq::Error::Status(409, _)) => {
+                Err(Report::new(ClientError).attach_printable("Scan is already scheduled"))
+            }
+            Err(e) => Err(Report::new(ClientError).attach_printable(e.to_string())),
+        }
     }
 }
 

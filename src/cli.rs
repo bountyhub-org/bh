@@ -50,6 +50,9 @@ enum Commands {
     #[command(subcommand)]
     Scan(Scan),
 
+    #[command(subcommand)]
+    Blob(Blob),
+
     /// Shell completion commands
     #[command(arg_required_else_help = true)]
     Completion(Completion),
@@ -67,6 +70,7 @@ impl Commands {
             Commands::Completion(_) => unreachable!(),
             Commands::Job(job) => job.run(client)?,
             Commands::Scan(scan) => scan.run(client)?,
+            Commands::Blob(blob) => blob.run(client)?,
         }
 
         Ok(())
@@ -330,6 +334,69 @@ impl Scan {
     }
 }
 
+#[derive(Subcommand, Debug, Clone)]
+enum Blob {
+    Download {
+        #[clap(short, long, required = true)]
+        path: String,
+        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
+        #[arg(value_hint = ValueHint::DirPath)]
+        output: Option<String>,
+    },
+    Upload {
+        #[clap(short, long, required = true)]
+        #[arg(value_hint = ValueHint::DirPath)]
+        path: String,
+
+        #[clap(long, required = true)]
+        to: String,
+    },
+}
+
+impl Blob {
+    fn run<C>(self, client: C) -> Result<(), CliError>
+    where
+        C: Client,
+    {
+        match self {
+            Blob::Download { path, output } => {
+                let output = match output {
+                    Some(output) => {
+                        let output = PathBuf::from(output);
+                        if output.is_dir() {
+                            output.join(&path)
+                        } else {
+                            output
+                        }
+                    }
+                    None => env::current_dir()
+                        .change_context(CliError)
+                        .attach_printable("Failed to get current directory")?
+                        .join(&path),
+                };
+
+                let mut freader = client
+                    .download_blob_file(&path)
+                    .change_context(CliError)
+                    .attach_printable("Failed to download file")?;
+
+                let mut fwriter = std::fs::File::create(output)
+                    .change_context(CliError)
+                    .attach_printable("Failed to create file")?;
+
+                std::io::copy(&mut *freader, &mut fwriter)
+                    .change_context(CliError)
+                    .attach_printable("failed to write file")?;
+            }
+            Blob::Upload { path, to } => {
+                todo!()
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod job_tests {
     use super::*;
@@ -478,6 +545,23 @@ mod job_tests {
         let result = split_input(input).unwrap_or_else(|_| panic!("{input}: want ok, got err"));
         assert_eq!(result.0, "k");
         assert_eq!(result.1, "v=a");
+    }
+
+    #[test]
+    fn test_download_blob_file() {
+        let cmd = Blob::Download {
+            path: "file.txt".to_string(),
+            output: None,
+        };
+        let mut client = MockClient::new();
+        client
+            .expect_download_blob_file()
+            .with(function(|v| v == "file.txt"))
+            .times(1)
+            .returning(|_| Err(Report::new(ClientError)));
+
+        let result = cmd.run(client);
+        assert!(result.is_err(), "expected error, got ok");
     }
 }
 

@@ -43,6 +43,11 @@ pub trait Client {
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError>;
+
+    fn download_blob_file(
+        &self,
+        path: &str,
+    ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 }
 
 pub struct HTTPClient {
@@ -165,6 +170,32 @@ impl Client for HTTPClient {
             }
             Err(e) => Err(Report::new(ClientError).attach_printable(e.to_string())),
         }
+    }
+
+    fn download_blob_file(
+        &self,
+        path: &str,
+    ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
+        let url = format!("{0}/api/v0/blobs/{path}", self.bountyhub_domain);
+        let FileResult { url } = self
+            .bountyhub_agent
+            .get(url.as_str())
+            .set("Authorization", self.authorization.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to request download")?
+            .into_json()
+            .change_context(ClientError)
+            .attach_printable("Failed to parse response")?;
+
+        let res = self
+            .file_agent
+            .get(url.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to download file")?;
+
+        Ok(res.into_reader())
     }
 }
 

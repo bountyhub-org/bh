@@ -1,16 +1,12 @@
 use crate::client::{Client, HTTPClient};
 use crate::validation;
-use clap::Args;
-use clap::{CommandFactory, Parser, Subcommand, ValueHint};
-use clap_complete::generate;
-use clap_complete::Shell;
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
+use clap_complete::{generate, Shell};
 use error_stack::{Context, Report, Result, ResultExt};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::env;
-use std::fmt;
-use std::io;
 use std::path::PathBuf;
+use std::{env, fmt, fs, io};
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
@@ -208,7 +204,7 @@ impl Job {
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
-                let mut fwriter = std::fs::File::create(output)
+                let mut fwriter = fs::File::create(output)
                     .change_context(CliError)
                     .attach_printable("Failed to create file")?;
 
@@ -344,12 +340,14 @@ enum Blob {
         output: Option<String>,
     },
     Upload {
+        /// src is the source file on the local filesystem
         #[clap(short, long, required = true)]
         #[arg(value_hint = ValueHint::DirPath)]
-        path: String,
+        src: String,
 
+        /// dst is the destination path on bountyhub.org blobs
         #[clap(long, required = true)]
-        to: String,
+        dst: String,
     },
 }
 
@@ -380,7 +378,7 @@ impl Blob {
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
-                let mut fwriter = std::fs::File::create(output)
+                let mut fwriter = fs::File::create(output)
                     .change_context(CliError)
                     .attach_printable("Failed to create file")?;
 
@@ -388,8 +386,15 @@ impl Blob {
                     .change_context(CliError)
                     .attach_printable("failed to write file")?;
             }
-            Blob::Upload { path, to } => {
-                todo!()
+            Blob::Upload { src, dst } => {
+                let freader = fs::File::open(&src)
+                    .change_context(CliError)
+                    .attach_printable(format!("failed to open file '{src}'"))?;
+
+                client
+                    .upload_blob_file(freader, dst.as_str())
+                    .change_context(CliError)
+                    .attach_printable("failed to call upload blob file")?;
             }
         }
 

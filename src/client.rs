@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
 use ureq::Agent;
@@ -15,6 +16,12 @@ use uuid::Uuid;
 pub struct DispatchScanRequest {
     pub scan_name: String,
     pub inputs: Option<BTreeMap<String, Value>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadBlobFileRequest {
+    pub path: String,
 }
 
 #[cfg_attr(test, automock)]
@@ -43,6 +50,13 @@ pub trait Client {
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError>;
+
+    fn download_blob_file(
+        &self,
+        path: &str,
+    ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
+
+    fn upload_blob_file(&self, file: File, dst: &str) -> Result<(), ClientError>;
 }
 
 pub struct HTTPClient {
@@ -98,7 +112,7 @@ impl Client for HTTPClient {
         job_id: Uuid,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
         let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
-        let FileResult { url } = self
+        let UrlResponse { url } = self
             .bountyhub_agent
             .get(url.as_str())
             .set("Authorization", self.authorization.as_str())
@@ -166,6 +180,56 @@ impl Client for HTTPClient {
             Err(e) => Err(Report::new(ClientError).attach_printable(e.to_string())),
         }
     }
+
+    fn download_blob_file(
+        &self,
+        path: &str,
+    ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
+        let url = format!("{0}/api/v0/blobs/{path}", self.bountyhub_domain);
+        let UrlResponse { url } = self
+            .bountyhub_agent
+            .get(url.as_str())
+            .set("Authorization", self.authorization.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to request download")?
+            .into_json()
+            .change_context(ClientError)
+            .attach_printable("Failed to parse response")?;
+
+        let res = self
+            .file_agent
+            .get(url.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to download file")?;
+
+        Ok(res.into_reader())
+    }
+
+    fn upload_blob_file(&self, file: File, dst: &str) -> Result<(), ClientError> {
+        let url = format!("{0}/api/v0/blobs/files", self.bountyhub_domain);
+        let UrlResponse { url } = self
+            .bountyhub_agent
+            .post(url.as_str())
+            .set("Authorization", self.authorization.as_str())
+            .send_json(UploadBlobFileRequest {
+                path: dst.to_string(),
+            })
+            .change_context(ClientError)
+            .attach_printable("failed to create upload link")?
+            .into_json()
+            .change_context(ClientError)
+            .attach_printable("failed to parse response")?;
+
+        self.file_agent
+            .put(&url)
+            .send(file)
+            .change_context(ClientError)
+            .attach_printable("failed to send file")?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -180,6 +244,6 @@ impl fmt::Display for ClientError {
 impl Context for ClientError {}
 
 #[derive(Deserialize, Debug)]
-struct FileResult {
+struct UrlResponse {
     url: String,
 }

@@ -1,6 +1,6 @@
 use crate::client::{Client, HTTPClient};
 use crate::validation;
-use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
+use clap::{Args, Command, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{generate, Shell};
 use error_stack::{Context, Report, Result, ResultExt};
 use serde_json::Value;
@@ -46,12 +46,17 @@ enum Commands {
     #[command(subcommand)]
     Scan(Scan),
 
+    /// Blob related commands
     #[command(subcommand)]
     Blob(Blob),
 
     /// Shell completion commands
     #[command(arg_required_else_help = true)]
     Completion(Completion),
+
+    /// Generate
+    #[command(subcommand)]
+    Generate(Generate),
 }
 
 impl Commands {
@@ -67,6 +72,7 @@ impl Commands {
             Commands::Job(job) => job.run(client)?,
             Commands::Scan(scan) => scan.run(client)?,
             Commands::Blob(blob) => blob.run(client)?,
+            Commands::Generate(generate) => generate.run()?,
         }
 
         Ok(())
@@ -399,6 +405,38 @@ impl Blob {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum Generate {
+    Man,
+    Docs,
+}
+
+impl Generate {
+    fn run(self) -> Result<(), CliError> {
+        match self {
+            Generate::Man => {
+                let man = clap_mangen::Man::new(Cli::command());
+                let mut stdout = std::io::stdout().lock();
+                man.render(&mut stdout)
+                    .change_context(CliError)
+                    .attach_printable("failed to render man page")?;
+            }
+            Generate::Docs => {
+                let cmd = Cli::command();
+                print_commands(cmd, 1);
+            }
+        }
+        Ok(())
+    }
+}
+
+fn print_commands(mut cmd: Command, lvl: usize) {
+    println!("{} {}", "#".repeat(lvl), cmd.render_long_help());
+    for subcommand in cmd.get_subcommands().cloned() {
+        print_commands(subcommand, lvl + 1);
     }
 }
 

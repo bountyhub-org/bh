@@ -8,6 +8,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
+use ureq::tls::{RootCerts, TlsConfig};
 use ureq::Agent;
 use uuid::Uuid;
 
@@ -68,21 +69,31 @@ pub struct HTTPClient {
 
 impl HTTPClient {
     pub fn new(bountyhub_domain: &str, pat: &str, version: &str) -> Self {
+        let tls = TlsConfig::builder()
+            .root_certs(RootCerts::PlatformVerifier)
+            .build();
+
         let ua = format!("bh/{}", version);
-        let bountyhub_agent = ureq::builder()
-            .timeout(Duration::from_secs(10))
-            .user_agent(ua.as_str())
-            .timeout_connect(Duration::from_secs(10))
-            .timeout_read(Duration::from_secs(10))
-            .timeout_write(Duration::from_secs(10))
-            .build();
-        let file_agent = ureq::builder()
-            .timeout(Duration::from_secs(240))
-            .user_agent(ua.as_str())
-            .timeout_connect(Duration::from_secs(10))
-            .timeout_read(Duration::from_secs(240))
-            .timeout_write(Duration::from_secs(10))
-            .build();
+        let bountyhub_agent = ureq::Agent::new_with_config(
+            ureq::Agent::config_builder()
+                .timeout_send_body(Some(Duration::from_secs(10)))
+                .user_agent(ua.as_str())
+                .timeout_connect(Some(Duration::from_secs(10)))
+                .timeout_recv_response(Some(Duration::from_secs(10)))
+                .timeout_send_request(Some(Duration::from_secs(10)))
+                .tls_config(tls.clone())
+                .build(),
+        );
+        let file_agent = ureq::Agent::new_with_config(
+            ureq::Agent::config_builder()
+                .timeout_recv_response(Some(Duration::from_secs(240)))
+                .user_agent(ua.as_str())
+                .timeout_connect(Some(Duration::from_secs(10)))
+                .timeout_send_body(Some(Duration::from_secs(240)))
+                .timeout_send_request(Some(Duration::from_secs(10)))
+                .tls_config(tls.clone())
+                .build(),
+        );
 
         Self {
             authorization: format!("Bearer {}", pat),
@@ -115,11 +126,12 @@ impl Client for HTTPClient {
         let UrlResponse { url } = self
             .bountyhub_agent
             .get(url.as_str())
-            .set("Authorization", self.authorization.as_str())
+            .header("Authorization", self.authorization.as_str())
             .call()
             .change_context(ClientError)
             .attach_printable("Failed to request download")?
-            .into_json()
+            .body_mut()
+            .read_json()
             .change_context(ClientError)
             .attach_printable("Failed to parse response")?;
 
@@ -130,7 +142,7 @@ impl Client for HTTPClient {
             .change_context(ClientError)
             .attach_printable("Failed to download file")?;
 
-        Ok(res.into_reader())
+        Ok(Box::new(res.into_body().into_reader()))
     }
 
     fn delete_job(
@@ -147,7 +159,7 @@ impl Client for HTTPClient {
 
         self.bountyhub_agent
             .delete(url.as_str())
-            .set("Authorization", self.authorization.as_str())
+            .header("Authorization", self.authorization.as_str())
             .call()
             .change_context(ClientError)
             .attach_printable("Failed to delete job")?;
@@ -170,11 +182,11 @@ impl Client for HTTPClient {
         match self
             .bountyhub_agent
             .post(url.as_str())
-            .set("Authorization", self.authorization.as_str())
+            .header("Authorization", self.authorization.as_str())
             .send_json(DispatchScanRequest { scan_name, inputs })
         {
             Ok(_) => Ok(()),
-            Err(ureq::Error::Status(409, _)) => {
+            Err(ureq::Error::StatusCode(409)) => {
                 Err(Report::new(ClientError).attach_printable("Scan is already scheduled"))
             }
             Err(e) => Err(Report::new(ClientError).attach_printable(e.to_string())),
@@ -185,15 +197,16 @@ impl Client for HTTPClient {
         &self,
         path: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
-        let url = format!("{0}/api/v0/blobs/{path}", self.bountyhub_domain);
+        let url = format!("{0}/api/v0/blobs/{1}", self.bountyhub_domain, encode(path),);
         let UrlResponse { url } = self
             .bountyhub_agent
             .get(url.as_str())
-            .set("Authorization", self.authorization.as_str())
+            .header("Authorization", self.authorization.as_str())
             .call()
             .change_context(ClientError)
             .attach_printable("Failed to request download")?
-            .into_json()
+            .body_mut()
+            .read_json()
             .change_context(ClientError)
             .attach_printable("Failed to parse response")?;
 
@@ -204,7 +217,7 @@ impl Client for HTTPClient {
             .change_context(ClientError)
             .attach_printable("Failed to download file")?;
 
-        Ok(res.into_reader())
+        Ok(Box::new(res.into_body().into_reader()))
     }
 
     fn upload_blob_file(&self, file: File, dst: &str) -> Result<(), ClientError> {
@@ -212,13 +225,14 @@ impl Client for HTTPClient {
         let UrlResponse { url } = self
             .bountyhub_agent
             .post(url.as_str())
-            .set("Authorization", self.authorization.as_str())
+            .header("Authorization", self.authorization.as_str())
             .send_json(UploadBlobFileRequest {
                 path: dst.to_string(),
             })
             .change_context(ClientError)
             .attach_printable("failed to create upload link")?
-            .into_json()
+            .body_mut()
+            .read_json()
             .change_context(ClientError)
             .attach_printable("failed to parse response")?;
 
@@ -230,6 +244,10 @@ impl Client for HTTPClient {
 
         Ok(())
     }
+}
+
+fn encode(s: &str) -> String {
+    percent_encoding::percent_encode(s.as_bytes(), percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
 #[derive(Debug)]

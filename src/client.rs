@@ -8,8 +8,8 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
-use ureq::tls::{RootCerts, TlsConfig};
 use ureq::Agent;
+use ureq::tls::{RootCerts, TlsConfig};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -122,7 +122,10 @@ impl Client for HTTPClient {
         revision_id: Uuid,
         job_id: Uuid,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
-        let url = format!("{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result", self.bountyhub_domain);
+        let url = format!(
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result",
+            self.bountyhub_domain
+        );
         let UrlResponse { url } = self
             .bountyhub_agent
             .get(url.as_str())

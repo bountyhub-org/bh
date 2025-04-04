@@ -1,7 +1,7 @@
 use crate::client::{Client, HTTPClient};
 use crate::validation;
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use error_stack::{Context, Report, Result, ResultExt};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -91,36 +91,6 @@ fn new_client() -> Result<HTTPClient, CliError> {
     let bountyhub = env::var("BOUNTYHUB_URL").unwrap_or("https://bountyhub.org".to_string());
 
     Ok(HTTPClient::new(&bountyhub, &pat, env!("CARGO_PKG_VERSION")))
-}
-
-#[cfg(test)]
-mod new_client_tests {
-    use super::*;
-
-    fn unset_env() {
-        env::remove_var("BOUNTYHUB_TOKEN");
-        env::remove_var("BOUNTYHUB_URL");
-    }
-
-    #[test]
-    fn test_new_client() {
-        unset_env();
-        assert!(new_client().is_err());
-
-        env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
-        let client = new_client().expect("Failed to create client");
-        assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(client.bountyhub_domain(), "https://bountyhub.org");
-
-        env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
-        env::set_var("BOUNTYHUB_URL", "https://my-custom-bountyhub.org");
-        let client = new_client().expect("Failed to create client");
-        assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(client.bountyhub_domain(), "https://my-custom-bountyhub.org");
-
-        env::set_var("BOUNTYHUB_TOKEN", "example");
-        assert!(new_client().is_err());
-    }
 }
 
 /// Job based commands

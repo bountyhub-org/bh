@@ -110,16 +110,13 @@ mod new_client_tests {
         env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(client.bountyhub_domain(), "https://bountyhub.org/");
+        assert_eq!(client.bountyhub_domain(), "https://bountyhub.org");
 
         env::set_var("BOUNTYHUB_TOKEN", "bhv1_1234");
         env::set_var("BOUNTYHUB_URL", "https://my-custom-bountyhub.org");
         let client = new_client().expect("Failed to create client");
         assert_eq!(client.authorization(), "Bearer bhv1_1234");
-        assert_eq!(
-            client.bountyhub_domain(),
-            "https://my-custom-bountyhub.org/"
-        );
+        assert_eq!(client.bountyhub_domain(), "https://my-custom-bountyhub.org");
 
         env::set_var("BOUNTYHUB_TOKEN", "example");
         assert!(new_client().is_err());

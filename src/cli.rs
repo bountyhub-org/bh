@@ -5,7 +5,7 @@ use clap_complete::{Shell, generate};
 use error_stack::{Context, Report, Result, ResultExt};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fmt, fs, io};
 use uuid::Uuid;
 
@@ -304,10 +304,10 @@ impl Scan {
 enum Blob {
     Download {
         #[clap(short, long, required = true)]
-        path: String,
+        src: String,
         #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
-        output: Option<String>,
+        dst: Option<String>,
     },
     Upload {
         /// src is the source file on the local filesystem
@@ -327,7 +327,10 @@ impl Blob {
         C: Client,
     {
         match self {
-            Blob::Download { path, output } => {
+            Blob::Download {
+                src: path,
+                dst: output,
+            } => {
                 let output = match output {
                     Some(output) => {
                         let output = PathBuf::from(output);
@@ -340,7 +343,7 @@ impl Blob {
                     None => env::current_dir()
                         .change_context(CliError)
                         .attach_printable("Failed to get current directory")?
-                        .join(&path),
+                        .join(Path::new(&path).file_name().unwrap_or_default()),
                 };
 
                 let mut freader = client
@@ -525,8 +528,8 @@ mod job_tests {
     #[test]
     fn test_download_blob_file() {
         let cmd = Blob::Download {
-            path: "file.txt".to_string(),
-            output: None,
+            src: "file.txt".to_string(),
+            dst: None,
         };
         let mut client = MockClient::new();
         client

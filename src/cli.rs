@@ -192,7 +192,7 @@ impl JobArtifact {
                     Some(output) => {
                         let output = PathBuf::from(output);
                         if output.is_dir() {
-                            output.join(job_id.to_string())
+                            output.join(&name)
                         } else {
                             output
                         }
@@ -200,7 +200,7 @@ impl JobArtifact {
                     None => env::current_dir()
                         .change_context(CliError)
                         .attach_printable("Failed to get current directory")?
-                        .join(job_id.to_string()),
+                        .join(&name),
                 };
 
                 let mut freader = client
@@ -412,20 +412,28 @@ mod job_tests {
         let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
         let job_id = Uuid::now_v7();
+        let name = "test.zip";
 
         let cmd = JobArtifact::Download {
             project_id,
             workflow_id,
             revision_id,
             job_id,
+            name: name.to_string(),
             output: None,
         };
         let mut client = MockClient::new();
         client
-            .expect_download_job_result_file()
-            .with(eq(project_id), eq(workflow_id), eq(revision_id), eq(job_id))
+            .expect_download_job_artifact()
+            .with(
+                eq(project_id),
+                eq(workflow_id),
+                eq(revision_id),
+                eq(job_id),
+                eq(name.to_string()),
+            )
             .times(1)
-            .returning(|_, _, _, _| Err(Report::new(ClientError)));
+            .returning(|_, _, _, _, _| Err(Report::new(ClientError)));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");

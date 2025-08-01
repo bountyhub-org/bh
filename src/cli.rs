@@ -96,29 +96,8 @@ fn new_client() -> Result<HTTPClient, CliError> {
 /// Job based commands
 #[derive(Subcommand, Debug, Clone)]
 enum Job {
-    #[clap(name = "download")]
-    #[clap(about = "Download a file from the internet")]
-    Download {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
-        #[clap(required = true)]
-        revision_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
-        #[clap(required = true)]
-        job_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
-        #[arg(value_hint = ValueHint::DirPath)]
-        output: Option<String>,
-    },
+    #[command(subcommand)]
+    Artifact(JobArtifact),
 
     #[clap(name = "delete")]
     #[clap(about = "Delete a job")]
@@ -147,11 +126,66 @@ impl Job {
         C: Client,
     {
         match self {
-            Job::Download {
+            Job::Delete {
                 project_id,
                 workflow_id,
                 revision_id,
                 job_id,
+            } => {
+                client
+                    .delete_job(project_id, workflow_id, revision_id, job_id)
+                    .change_context(CliError)
+                    .attach_printable("Failed to delete job")?;
+                Ok(())
+            }
+            Job::Artifact(artifact) => artifact.run(client),
+        }
+    }
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum JobArtifact {
+    #[clap(name = "download")]
+    #[clap(about = "Download a file from the internet")]
+    Download {
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
+        #[clap(required = true)]
+        project_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
+        #[clap(required = true)]
+        workflow_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
+        #[clap(required = true)]
+        revision_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[clap(required = true)]
+        job_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
+        #[clap(required = true)]
+        name: String,
+
+        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
+        #[arg(value_hint = ValueHint::DirPath)]
+        output: Option<String>,
+    },
+}
+
+impl JobArtifact {
+    fn run<C>(self, client: C) -> Result<(), CliError>
+    where
+        C: Client,
+    {
+        match self {
+            JobArtifact::Download {
+                project_id,
+                workflow_id,
+                revision_id,
+                job_id,
+                name,
                 output,
             } => {
                 let output = match output {
@@ -170,7 +204,7 @@ impl Job {
                 };
 
                 let mut freader = client
-                    .download_job_result_file(project_id, workflow_id, revision_id, job_id)
+                    .download_job_artifact(project_id, workflow_id, revision_id, job_id, name)
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
@@ -182,19 +216,7 @@ impl Job {
                     .change_context(CliError)
                     .attach_printable("failed to write file")?;
             }
-            Job::Delete {
-                project_id,
-                workflow_id,
-                revision_id,
-                job_id,
-            } => {
-                client
-                    .delete_job(project_id, workflow_id, revision_id, job_id)
-                    .change_context(CliError)
-                    .attach_printable("Failed to delete job")?;
-            }
         }
-
         Ok(())
     }
 }
@@ -391,7 +413,7 @@ mod job_tests {
         let revision_id = Uuid::now_v7();
         let job_id = Uuid::now_v7();
 
-        let cmd = Job::Download {
+        let cmd = JobArtifact::Download {
             project_id,
             workflow_id,
             revision_id,

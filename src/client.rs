@@ -27,12 +27,13 @@ pub struct UploadBlobFileRequest {
 
 #[cfg_attr(test, automock)]
 pub trait Client {
-    fn download_job_result_file(
+    fn download_job_artifact(
         &self,
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
         job_id: Uuid,
+        name: String,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
     fn delete_job(
@@ -115,15 +116,16 @@ impl HTTPClient {
 }
 
 impl Client for HTTPClient {
-    fn download_job_result_file(
+    fn download_job_artifact(
         &self,
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
         job_id: Uuid,
+        name: String,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/result",
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/artifacts/{name}",
             self.bountyhub_domain
         );
         let UrlResponse { url } = self

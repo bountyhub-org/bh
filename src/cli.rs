@@ -96,29 +96,8 @@ fn new_client() -> Result<HTTPClient, CliError> {
 /// Job based commands
 #[derive(Subcommand, Debug, Clone)]
 enum Job {
-    #[clap(name = "download")]
-    #[clap(about = "Download a file from the internet")]
-    Download {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
-        #[clap(required = true)]
-        revision_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
-        #[clap(required = true)]
-        job_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
-        #[arg(value_hint = ValueHint::DirPath)]
-        output: Option<String>,
-    },
+    #[command(subcommand)]
+    Artifact(JobArtifact),
 
     #[clap(name = "delete")]
     #[clap(about = "Delete a job")]
@@ -147,18 +126,73 @@ impl Job {
         C: Client,
     {
         match self {
-            Job::Download {
+            Job::Delete {
                 project_id,
                 workflow_id,
                 revision_id,
                 job_id,
+            } => {
+                client
+                    .delete_job(project_id, workflow_id, revision_id, job_id)
+                    .change_context(CliError)
+                    .attach_printable("Failed to delete job")?;
+                Ok(())
+            }
+            Job::Artifact(artifact) => artifact.run(client),
+        }
+    }
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum JobArtifact {
+    #[clap(name = "download")]
+    #[clap(about = "Download a file from the internet")]
+    Download {
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
+        #[clap(required = true)]
+        project_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
+        #[clap(required = true)]
+        workflow_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
+        #[clap(required = true)]
+        revision_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[clap(required = true)]
+        job_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
+        #[clap(required = true)]
+        name: String,
+
+        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
+        #[arg(value_hint = ValueHint::DirPath)]
+        output: Option<String>,
+    },
+}
+
+impl JobArtifact {
+    fn run<C>(self, client: C) -> Result<(), CliError>
+    where
+        C: Client,
+    {
+        match self {
+            JobArtifact::Download {
+                project_id,
+                workflow_id,
+                revision_id,
+                job_id,
+                name,
                 output,
             } => {
                 let output = match output {
                     Some(output) => {
                         let output = PathBuf::from(output);
                         if output.is_dir() {
-                            output.join(job_id.to_string())
+                            output.join(&name)
                         } else {
                             output
                         }
@@ -166,11 +200,11 @@ impl Job {
                     None => env::current_dir()
                         .change_context(CliError)
                         .attach_printable("Failed to get current directory")?
-                        .join(job_id.to_string()),
+                        .join(&name),
                 };
 
                 let mut freader = client
-                    .download_job_result_file(project_id, workflow_id, revision_id, job_id)
+                    .download_job_artifact(project_id, workflow_id, revision_id, job_id, name)
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
@@ -182,19 +216,7 @@ impl Job {
                     .change_context(CliError)
                     .attach_printable("failed to write file")?;
             }
-            Job::Delete {
-                project_id,
-                workflow_id,
-                revision_id,
-                job_id,
-            } => {
-                client
-                    .delete_job(project_id, workflow_id, revision_id, job_id)
-                    .change_context(CliError)
-                    .attach_printable("Failed to delete job")?;
-            }
         }
-
         Ok(())
     }
 }
@@ -390,20 +412,28 @@ mod job_tests {
         let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
         let job_id = Uuid::now_v7();
+        let name = "test.zip";
 
-        let cmd = Job::Download {
+        let cmd = JobArtifact::Download {
             project_id,
             workflow_id,
             revision_id,
             job_id,
+            name: name.to_string(),
             output: None,
         };
         let mut client = MockClient::new();
         client
-            .expect_download_job_result_file()
-            .with(eq(project_id), eq(workflow_id), eq(revision_id), eq(job_id))
+            .expect_download_job_artifact()
+            .with(
+                eq(project_id),
+                eq(workflow_id),
+                eq(revision_id),
+                eq(job_id),
+                eq(name.to_string()),
+            )
             .times(1)
-            .returning(|_, _, _, _| Err(Report::new(ClientError)));
+            .returning(|_, _, _, _, _| Err(Report::new(ClientError)));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");

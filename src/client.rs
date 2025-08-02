@@ -36,6 +36,15 @@ pub trait Client {
         name: String,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
+    fn delete_job_artifact(
+        &self,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
+        name: String,
+    ) -> Result<(), ClientError>;
+
     fn delete_job(
         &self,
         project_id: Uuid,
@@ -148,6 +157,29 @@ impl Client for HTTPClient {
             .attach_printable("Failed to download file")?;
 
         Ok(Box::new(res.into_body().into_reader()))
+    }
+
+    fn delete_job_artifact(
+        &self,
+        project_id: Uuid,
+        workflow_id: Uuid,
+        revision_id: Uuid,
+        job_id: Uuid,
+        name: String,
+    ) -> Result<(), ClientError> {
+        let url = format!(
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/artifacts/{name}",
+            self.bountyhub_domain
+        );
+
+        self.bountyhub_agent
+            .delete(url)
+            .header("Authorization", self.authorization.as_str())
+            .call()
+            .change_context(ClientError)
+            .attach_printable("Failed to delete artifact")?;
+
+        Ok(())
     }
 
     fn delete_job(

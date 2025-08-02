@@ -172,6 +172,30 @@ pub enum JobArtifact {
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
     },
+
+    #[clap(name = "delete")]
+    #[clap(about = "Delete job artifact")]
+    Delete {
+        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
+        #[clap(required = true)]
+        project_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
+        #[clap(required = true)]
+        workflow_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
+        #[clap(required = true)]
+        revision_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[clap(required = true)]
+        job_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
+        #[clap(required = true)]
+        name: String,
+    },
 }
 
 impl JobArtifact {
@@ -215,6 +239,18 @@ impl JobArtifact {
                 std::io::copy(&mut *freader, &mut fwriter)
                     .change_context(CliError)
                     .attach_printable("failed to write file")?;
+            }
+            JobArtifact::Delete {
+                project_id,
+                workflow_id,
+                revision_id,
+                job_id,
+                name,
+            } => {
+                client
+                    .delete_job_artifact(project_id, workflow_id, revision_id, job_id, name)
+                    .change_context(CliError)
+                    .attach_printable("failed to delete job artifact")?;
             }
         }
         Ok(())

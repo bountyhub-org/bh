@@ -32,8 +32,9 @@ pub trait Client {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
-        name: String,
+        name: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
     fn delete_job_artifact(
@@ -41,8 +42,9 @@ pub trait Client {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
-        name: String,
+        name: &str,
     ) -> Result<(), ClientError>;
 
     fn delete_job(
@@ -50,6 +52,7 @@ pub trait Client {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
     ) -> Result<(), ClientError>;
 
@@ -130,11 +133,12 @@ impl Client for HTTPClient {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
-        name: String,
+        name: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/artifacts/{name}",
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}/artifacts/{name}",
             self.bountyhub_domain
         );
         let UrlResponse { url } = self
@@ -164,11 +168,12 @@ impl Client for HTTPClient {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
-        name: String,
+        name: &str,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}/artifacts/{name}",
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}/artifacts/{name}",
             self.bountyhub_domain
         );
 
@@ -187,10 +192,11 @@ impl Client for HTTPClient {
         project_id: Uuid,
         workflow_id: Uuid,
         revision_id: Uuid,
+        scan_name: &str,
         job_id: Uuid,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/jobs/{job_id}",
+            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}",
             self.bountyhub_domain
         );
 

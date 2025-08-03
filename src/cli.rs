@@ -114,6 +114,10 @@ enum Job {
         #[clap(required = true)]
         revision_id: Uuid,
 
+        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
+        #[clap(required = true)]
+        scan_name: String,
+
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
@@ -130,10 +134,11 @@ impl Job {
                 project_id,
                 workflow_id,
                 revision_id,
+                scan_name,
                 job_id,
             } => {
                 client
-                    .delete_job(project_id, workflow_id, revision_id, job_id)
+                    .delete_job(project_id, workflow_id, revision_id, &scan_name, job_id)
                     .change_context(CliError)
                     .attach_printable("Failed to delete job")?;
                 Ok(())
@@ -159,6 +164,10 @@ pub enum JobArtifact {
         #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
         #[clap(required = true)]
         revision_id: Uuid,
+
+        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
+        #[clap(required = true)]
+        scan_name: String,
 
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
@@ -188,6 +197,10 @@ pub enum JobArtifact {
         #[clap(required = true)]
         revision_id: Uuid,
 
+        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
+        #[clap(required = true)]
+        scan_name: String,
+
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
@@ -208,6 +221,7 @@ impl JobArtifact {
                 project_id,
                 workflow_id,
                 revision_id,
+                scan_name,
                 job_id,
                 name,
                 output,
@@ -228,7 +242,14 @@ impl JobArtifact {
                 };
 
                 let mut freader = client
-                    .download_job_artifact(project_id, workflow_id, revision_id, job_id, name)
+                    .download_job_artifact(
+                        project_id,
+                        workflow_id,
+                        revision_id,
+                        &scan_name,
+                        job_id,
+                        &name,
+                    )
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
@@ -244,11 +265,19 @@ impl JobArtifact {
                 project_id,
                 workflow_id,
                 revision_id,
+                scan_name,
                 job_id,
                 name,
             } => {
                 client
-                    .delete_job_artifact(project_id, workflow_id, revision_id, job_id, name)
+                    .delete_job_artifact(
+                        project_id,
+                        workflow_id,
+                        revision_id,
+                        &scan_name,
+                        job_id,
+                        &name,
+                    )
                     .change_context(CliError)
                     .attach_printable("failed to delete job artifact")?;
             }
@@ -448,12 +477,14 @@ mod job_tests {
         let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
         let job_id = Uuid::now_v7();
+        let scan_name = "scan";
         let name = "test.zip";
 
         let cmd = JobArtifact::Download {
             project_id,
             workflow_id,
             revision_id,
+            scan_name: scan_name.to_string(),
             job_id,
             name: name.to_string(),
             output: None,
@@ -465,11 +496,12 @@ mod job_tests {
                 eq(project_id),
                 eq(workflow_id),
                 eq(revision_id),
+                eq(scan_name),
                 eq(job_id),
-                eq(name.to_string()),
+                eq(name),
             )
             .times(1)
-            .returning(|_, _, _, _, _| Err(Report::new(ClientError)));
+            .returning(|_, _, _, _, _, _| Err(Report::new(ClientError)));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");
@@ -480,21 +512,29 @@ mod job_tests {
         let project_id = Uuid::now_v7();
         let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
+        let scan_name = "scan";
         let job_id = Uuid::now_v7();
 
         let cmd = Job::Delete {
             project_id,
             workflow_id,
             revision_id,
+            scan_name: scan_name.to_string(),
             job_id,
         };
 
         let mut client = MockClient::new();
         client
             .expect_delete_job()
-            .with(eq(project_id), eq(workflow_id), eq(revision_id), eq(job_id))
+            .with(
+                eq(project_id),
+                eq(workflow_id),
+                eq(revision_id),
+                eq(scan_name),
+                eq(job_id),
+            )
             .times(1)
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Ok(()));
 
         let result = cmd.run(client);
         assert!(result.is_ok(), "expected ok, got {result:?}");

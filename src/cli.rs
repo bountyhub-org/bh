@@ -102,22 +102,6 @@ enum Job {
     #[clap(name = "delete")]
     #[clap(about = "Delete a job")]
     Delete {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
-        #[clap(required = true)]
-        revision_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
-        #[clap(required = true)]
-        scan_name: String,
-
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
@@ -130,15 +114,9 @@ impl Job {
         C: Client,
     {
         match self {
-            Job::Delete {
-                project_id,
-                workflow_id,
-                revision_id,
-                scan_name,
-                job_id,
-            } => {
+            Job::Delete { job_id } => {
                 client
-                    .delete_job(project_id, workflow_id, revision_id, &scan_name, job_id)
+                    .delete_job(job_id)
                     .change_context(CliError)
                     .attach_printable("Failed to delete job")?;
                 Ok(())
@@ -153,29 +131,13 @@ pub enum JobArtifact {
     #[clap(name = "download")]
     #[clap(about = "Download a file from the internet")]
     Download {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
-        #[clap(required = true)]
-        revision_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
-        #[clap(required = true)]
-        scan_name: String,
-
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
 
         #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
         #[clap(required = true)]
-        name: String,
+        artifact_name: String,
 
         #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
@@ -185,29 +147,13 @@ pub enum JobArtifact {
     #[clap(name = "delete")]
     #[clap(about = "Delete job artifact")]
     Delete {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
-        #[clap(required = true)]
-        revision_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
-        #[clap(required = true)]
-        scan_name: String,
-
         #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[clap(required = true)]
         job_id: Uuid,
 
         #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
         #[clap(required = true)]
-        name: String,
+        artifact_name: String,
     },
 }
 
@@ -218,19 +164,15 @@ impl JobArtifact {
     {
         match self {
             JobArtifact::Download {
-                project_id,
-                workflow_id,
-                revision_id,
-                scan_name,
                 job_id,
-                name,
+                artifact_name,
                 output,
             } => {
                 let output = match output {
                     Some(output) => {
                         let output = PathBuf::from(output);
                         if output.is_dir() {
-                            output.join(&name)
+                            output.join(&artifact_name)
                         } else {
                             output
                         }
@@ -238,18 +180,11 @@ impl JobArtifact {
                     None => env::current_dir()
                         .change_context(CliError)
                         .attach_printable("Failed to get current directory")?
-                        .join(&name),
+                        .join(&artifact_name),
                 };
 
                 let mut freader = client
-                    .download_job_artifact(
-                        project_id,
-                        workflow_id,
-                        revision_id,
-                        &scan_name,
-                        job_id,
-                        &name,
-                    )
+                    .download_job_artifact(job_id, &artifact_name)
                     .change_context(CliError)
                     .attach_printable("Failed to download file")?;
 
@@ -262,22 +197,11 @@ impl JobArtifact {
                     .attach_printable("failed to write file")?;
             }
             JobArtifact::Delete {
-                project_id,
-                workflow_id,
-                revision_id,
-                scan_name,
                 job_id,
-                name,
+                artifact_name,
             } => {
                 client
-                    .delete_job_artifact(
-                        project_id,
-                        workflow_id,
-                        revision_id,
-                        &scan_name,
-                        job_id,
-                        &name,
-                    )
+                    .delete_job_artifact(job_id, &artifact_name)
                     .change_context(CliError)
                     .attach_printable("failed to delete job artifact")?;
             }
@@ -289,14 +213,6 @@ impl JobArtifact {
 #[derive(Subcommand, Debug, Clone)]
 enum Scan {
     Dispatch {
-        #[clap(short, long, env = "BOUNTYHUB_PROJECT_ID")]
-        #[clap(required = true)]
-        project_id: Uuid,
-
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
-        workflow_id: Uuid,
-
         #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
         #[clap(required = true)]
         revision_id: Uuid,
@@ -333,8 +249,6 @@ impl Scan {
     {
         match self {
             Scan::Dispatch {
-                project_id,
-                workflow_id,
                 revision_id,
                 scan_name,
                 input_string,
@@ -379,7 +293,7 @@ impl Scan {
                 };
 
                 client
-                    .dispatch_scan(project_id, workflow_id, revision_id, scan_name, inputs)
+                    .dispatch_scan(revision_id, scan_name, inputs)
                     .change_context(CliError)
                     .attach_printable("Failed to dispatch scan")
             }
@@ -473,35 +387,20 @@ mod job_tests {
 
     #[test]
     fn test_download_failed() {
-        let project_id = Uuid::now_v7();
-        let workflow_id = Uuid::now_v7();
-        let revision_id = Uuid::now_v7();
         let job_id = Uuid::now_v7();
-        let scan_name = "scan";
-        let name = "test.zip";
+        let artifact_name = "test.zip";
 
         let cmd = JobArtifact::Download {
-            project_id,
-            workflow_id,
-            revision_id,
-            scan_name: scan_name.to_string(),
             job_id,
-            name: name.to_string(),
+            artifact_name: artifact_name.to_string(),
             output: None,
         };
         let mut client = MockClient::new();
         client
             .expect_download_job_artifact()
-            .with(
-                eq(project_id),
-                eq(workflow_id),
-                eq(revision_id),
-                eq(scan_name),
-                eq(job_id),
-                eq(name),
-            )
+            .with(eq(job_id), eq(artifact_name))
             .times(1)
-            .returning(|_, _, _, _, _, _| Err(Report::new(ClientError)));
+            .returning(|_, _| Err(Report::new(ClientError)));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");
@@ -509,32 +408,16 @@ mod job_tests {
 
     #[test]
     fn test_delete_job_call() {
-        let project_id = Uuid::now_v7();
-        let workflow_id = Uuid::now_v7();
-        let revision_id = Uuid::now_v7();
-        let scan_name = "scan";
         let job_id = Uuid::now_v7();
 
-        let cmd = Job::Delete {
-            project_id,
-            workflow_id,
-            revision_id,
-            scan_name: scan_name.to_string(),
-            job_id,
-        };
+        let cmd = Job::Delete { job_id };
 
         let mut client = MockClient::new();
         client
             .expect_delete_job()
-            .with(
-                eq(project_id),
-                eq(workflow_id),
-                eq(revision_id),
-                eq(scan_name),
-                eq(job_id),
-            )
+            .with(eq(job_id))
             .times(1)
-            .returning(|_, _, _, _, _| Ok(()));
+            .returning(|_| Ok(()));
 
         let result = cmd.run(client);
         assert!(result.is_ok(), "expected ok, got {result:?}");
@@ -542,12 +425,8 @@ mod job_tests {
 
     #[test]
     fn test_dispatch_call_no_inputs() {
-        let project_id = Uuid::now_v7();
-        let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
         let cmd = Scan::Dispatch {
-            project_id,
-            workflow_id,
             revision_id,
             scan_name: "example".to_string(),
             input_string: None,
@@ -558,14 +437,12 @@ mod job_tests {
         client
             .expect_dispatch_scan()
             .with(
-                eq(project_id),
-                eq(workflow_id),
                 eq(revision_id),
                 function(|v| v == "example"),
                 function(|v: &Option<BTreeMap<String, Value>>| v.is_none()),
             )
             .times(1)
-            .returning(|_, _, _, _, _| Ok(()));
+            .returning(|_, _, _| Ok(()));
 
         let result = cmd.run(client);
         assert!(result.is_ok(), "expected ok, got {result:?}");
@@ -573,12 +450,8 @@ mod job_tests {
 
     #[test]
     fn test_dispatch_call_with_inputs() {
-        let project_id = Uuid::now_v7();
-        let workflow_id = Uuid::now_v7();
         let revision_id = Uuid::now_v7();
         let cmd = Scan::Dispatch {
-            project_id,
-            workflow_id,
             revision_id,
             scan_name: "example".to_string(),
             input_string: Some(vec!["s_key=s_val".to_string()]),
@@ -589,8 +462,6 @@ mod job_tests {
         client
             .expect_dispatch_scan()
             .with(
-                eq(project_id),
-                eq(workflow_id),
                 eq(revision_id),
                 function(|v| v == "example"),
                 function(|v: &Option<BTreeMap<String, Value>>| match v {
@@ -608,7 +479,7 @@ mod job_tests {
                 }),
             )
             .times(1)
-            .returning(|_, _, _, _, _| Ok(()));
+            .returning(|_, _, _| Ok(()));
 
         let result = cmd.run(client);
         assert!(result.is_ok(), "expected ok, got {result:?}");

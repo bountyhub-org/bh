@@ -29,37 +29,16 @@ pub struct UploadBlobFileRequest {
 pub trait Client {
     fn download_job_artifact(
         &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
         job_id: Uuid,
         name: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
-    fn delete_job_artifact(
-        &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
-        job_id: Uuid,
-        name: &str,
-    ) -> Result<(), ClientError>;
+    fn delete_job_artifact(&self, job_id: Uuid, name: &str) -> Result<(), ClientError>;
 
-    fn delete_job(
-        &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
-        job_id: Uuid,
-    ) -> Result<(), ClientError>;
+    fn delete_job(&self, job_id: Uuid) -> Result<(), ClientError>;
 
     fn dispatch_scan(
         &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
         revision_id: Uuid,
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
@@ -130,15 +109,11 @@ impl HTTPClient {
 impl Client for HTTPClient {
     fn download_job_artifact(
         &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
         job_id: Uuid,
         name: &str,
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}/artifacts/{name}",
+            "{0}/api/v0/workflows/jobs/{job_id}/artifacts/{name}",
             self.bountyhub_domain
         );
         let UrlResponse { url } = self
@@ -163,17 +138,9 @@ impl Client for HTTPClient {
         Ok(Box::new(res.into_body().into_reader()))
     }
 
-    fn delete_job_artifact(
-        &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
-        job_id: Uuid,
-        name: &str,
-    ) -> Result<(), ClientError> {
+    fn delete_job_artifact(&self, job_id: Uuid, name: &str) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}/artifacts/{name}",
+            "{0}/api/v0/workflows/jobs/{job_id}/artifacts/{name}",
             self.bountyhub_domain
         );
 
@@ -187,18 +154,8 @@ impl Client for HTTPClient {
         Ok(())
     }
 
-    fn delete_job(
-        &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
-        revision_id: Uuid,
-        scan_name: &str,
-        job_id: Uuid,
-    ) -> Result<(), ClientError> {
-        let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/{scan_name}/jobs/{job_id}",
-            self.bountyhub_domain
-        );
+    fn delete_job(&self, job_id: Uuid) -> Result<(), ClientError> {
+        let url = format!("{0}/api/v0/workflows/jobs/{job_id}", self.bountyhub_domain);
 
         self.bountyhub_agent
             .delete(url.as_str())
@@ -211,14 +168,12 @@ impl Client for HTTPClient {
 
     fn dispatch_scan(
         &self,
-        project_id: Uuid,
-        workflow_id: Uuid,
         revision_id: Uuid,
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/projects/{project_id}/workflows/{workflow_id}/revisions/{revision_id}/scans/dispatch",
+            "{0}/api/v0/workflows/revisions/{revision_id}/scans/dispatch",
             self.bountyhub_domain
         );
 

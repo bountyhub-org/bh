@@ -26,7 +26,7 @@ impl Cli {
                 Cli::command()
                     .print_help()
                     .change_context(CliError)
-                    .attach_printable("Failed to print help")?;
+                    .attach("Failed to print help")?;
             }
         }
 
@@ -82,13 +82,13 @@ fn new_client() -> Result<HTTPClient, CliError> {
         Ok(token) => {
             if !token.starts_with("bhv") {
                 return Err(CliError)
-                    .attach_printable("Invalid token format")
-                    .attach_printable("token does not start with bhv");
+                    .attach("Invalid token format")
+                    .attach("token does not start with bhv");
             }
             token
         }
         Err(err) => {
-            return Err(CliError).attach_printable(format!("Failed to get token: {:?}", err));
+            return Err(CliError).attach(format!("Failed to get token: {:?}", err));
         }
     };
 
@@ -122,7 +122,7 @@ impl Job {
                 client
                     .delete_job(job_id)
                     .change_context(CliError)
-                    .attach_printable("Failed to delete job")?;
+                    .attach("Failed to delete job")?;
                 Ok(())
             }
             Job::Artifact(artifact) => artifact.run(client),
@@ -183,22 +183,22 @@ impl JobArtifact {
                     }
                     None => env::current_dir()
                         .change_context(CliError)
-                        .attach_printable("Failed to get current directory")?
+                        .attach("Failed to get current directory")?
                         .join(&artifact_name),
                 };
 
                 let mut freader = client
                     .download_job_artifact(job_id, &artifact_name)
                     .change_context(CliError)
-                    .attach_printable("Failed to download file")?;
+                    .attach("Failed to download file")?;
 
                 let mut fwriter = fs::File::create(output)
                     .change_context(CliError)
-                    .attach_printable("Failed to create file")?;
+                    .attach("Failed to create file")?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
                     .change_context(CliError)
-                    .attach_printable("failed to write file")?;
+                    .attach("failed to write file")?;
             }
             JobArtifact::Delete {
                 job_id,
@@ -207,7 +207,7 @@ impl JobArtifact {
                 client
                     .delete_job_artifact(job_id, &artifact_name)
                     .change_context(CliError)
-                    .attach_printable("failed to delete job artifact")?;
+                    .attach("failed to delete job artifact")?;
             }
         }
         Ok(())
@@ -239,10 +239,10 @@ fn split_input(input: &str) -> Result<(&str, &str), CliError> {
     Ok((
         k.next()
             .ok_or(CliError)
-            .attach_printable(format!("failed to get the key from string input {input}"))?,
+            .attach(format!("failed to get the key from string input {input}"))?,
         k.next()
             .ok_or(CliError)
-            .attach_printable(format!("failed to get the value from string input {input}"))?,
+            .attach(format!("failed to get the value from string input {input}"))?,
     ))
 }
 
@@ -259,7 +259,7 @@ impl Scan {
                 input_bool,
             } => {
                 if !validation::valid_scan_name(&scan_name) {
-                    return Err(Report::new(CliError).attach_printable("invalid scan name"));
+                    return Err(Report::new(CliError).attach("invalid scan name"));
                 }
 
                 let inputs = if input_string.is_some() || input_bool.is_some() {
@@ -270,7 +270,7 @@ impl Scan {
                             let (k, v) = split_input(v.as_str())?;
                             if !validation::valid_workflow_var_key(k) {
                                 return Err(Report::new(CliError)
-                                    .attach_printable(format!("Key {k} is in invalid format")));
+                                    .attach(format!("Key {k} is in invalid format")));
                             }
                             m.insert(k.to_string(), Value::String(v.to_string()));
                         }
@@ -281,12 +281,12 @@ impl Scan {
                             let (k, v) = split_input(v.as_str())?;
                             if !validation::valid_workflow_var_key(k) {
                                 return Err(Report::new(CliError)
-                                    .attach_printable(format!("Key {k} is in invalid format")));
+                                    .attach(format!("Key {k} is in invalid format")));
                             }
                             let b = v
                                 .parse::<bool>()
                                 .change_context(CliError)
-                                .attach_printable("value is not bool")?;
+                                .attach("value is not bool")?;
                             m.insert(k.to_string(), Value::Bool(b));
                         }
                     }
@@ -299,7 +299,7 @@ impl Scan {
                 client
                     .dispatch_scan(workflow_id, scan_name, inputs)
                     .change_context(CliError)
-                    .attach_printable("Failed to dispatch scan")
+                    .attach("Failed to dispatch scan")
             }
         }
     }
@@ -347,32 +347,32 @@ impl Blob {
                     }
                     None => env::current_dir()
                         .change_context(CliError)
-                        .attach_printable("Failed to get current directory")?
+                        .attach("Failed to get current directory")?
                         .join(Path::new(&path).file_name().unwrap_or_default()),
                 };
 
                 let mut freader = client
                     .download_blob_file(&path)
                     .change_context(CliError)
-                    .attach_printable("Failed to download file")?;
+                    .attach("Failed to download file")?;
 
                 let mut fwriter = fs::File::create(output)
                     .change_context(CliError)
-                    .attach_printable("Failed to create file")?;
+                    .attach("Failed to create file")?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
                     .change_context(CliError)
-                    .attach_printable("failed to write file")?;
+                    .attach("failed to write file")?;
             }
             Blob::Upload { src, dst } => {
                 let freader = fs::File::open(&src)
                     .change_context(CliError)
-                    .attach_printable(format!("failed to open file '{src}'"))?;
+                    .attach(format!("failed to open file '{src}'"))?;
 
                 client
                     .upload_blob_file(freader, dst.as_str())
                     .change_context(CliError)
-                    .attach_printable("failed to call upload blob file")?;
+                    .attach("failed to call upload blob file")?;
             }
         }
 
@@ -418,7 +418,7 @@ impl RunnerRegistration {
                 let resp = client
                     .create_runner_registration()
                     .change_context(CliError)
-                    .attach_printable("Failed to create runner registration")?;
+                    .attach("Failed to create runner registration")?;
 
                 print!("{}", resp.token);
             }
@@ -426,7 +426,7 @@ impl RunnerRegistration {
                 let resp = client
                     .create_runner_registration()
                     .change_context(CliError)
-                    .attach_printable("Failed to create runner registration")?;
+                    .attach("Failed to create runner registration")?;
 
                 println!(
                     r#"runner configure --token "{}" --url "{}""#,

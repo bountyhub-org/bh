@@ -39,7 +39,7 @@ pub trait Client {
 
     fn dispatch_scan(
         &self,
-        revision_id: Uuid,
+        workflow_id: Uuid,
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError>;
@@ -168,12 +168,12 @@ impl Client for HTTPClient {
 
     fn dispatch_scan(
         &self,
-        revision_id: Uuid,
+        workflow_id: Uuid,
         scan_name: String,
         inputs: Option<BTreeMap<String, Value>>,
     ) -> Result<(), ClientError> {
         let url = format!(
-            "{0}/api/v0/workflows/revisions/{revision_id}/scans/dispatch",
+            "{0}/api/v0/workflows/{workflow_id}/scans/dispatch",
             self.bountyhub_domain
         );
 

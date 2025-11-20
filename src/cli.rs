@@ -48,9 +48,11 @@ enum Commands {
     #[command(subcommand)]
     Scan(Scan),
 
+    /// Blob related commands
     #[command(subcommand)]
     Blob(Blob),
 
+    /// Runner related commands
     #[command(subcommand)]
     Runner(Runner),
 
@@ -102,9 +104,11 @@ fn new_client() -> Result<HTTPClient> {
 /// Job based commands
 #[derive(Subcommand, Debug, Clone)]
 enum Job {
+    /// Job artifact related commands
     #[command(subcommand)]
     Artifact(JobArtifact),
 
+    /// Delete a job
     #[clap(name = "delete")]
     #[clap(about = "Delete a job")]
     Delete {
@@ -134,6 +138,7 @@ impl Job {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum JobArtifact {
+    /// Download an artifact uploaded by a job
     #[clap(name = "download")]
     #[clap(about = "Download a file from the internet")]
     Download {
@@ -150,6 +155,7 @@ pub enum JobArtifact {
         output: Option<String>,
     },
 
+    /// Delete job artifact
     #[clap(name = "delete")]
     #[clap(about = "Delete job artifact")]
     Delete {
@@ -218,6 +224,7 @@ impl JobArtifact {
 
 #[derive(Subcommand, Debug, Clone)]
 enum Scan {
+    /// Dispatch a scan from the latest revision of the workflow
     Dispatch {
         #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
         #[clap(required = true)]
@@ -309,6 +316,7 @@ impl Scan {
 
 #[derive(Subcommand, Debug, Clone)]
 enum Blob {
+    /// Download a file from bountyhub.org blob storage
     Download {
         #[clap(short, long, required = true)]
         src: String,
@@ -316,6 +324,7 @@ enum Blob {
         #[arg(value_hint = ValueHint::DirPath)]
         dst: Option<String>,
     },
+    /// Upload a file to bountyhub.org blob storage
     Upload {
         /// src is the source file on the local filesystem
         #[clap(short, long, required = true)]
@@ -384,6 +393,7 @@ impl Blob {
 
 #[derive(Subcommand, Debug, Clone)]
 enum Runner {
+    /// Runner registration commands
     #[command(subcommand)]
     Registration(RunnerRegistration),
 }
@@ -403,9 +413,11 @@ impl Runner {
 
 #[derive(Subcommand, Debug, Clone)]
 enum RunnerRegistration {
+    /// Get newly created runner registration token
     #[clap(name = "token")]
     Token,
 
+    /// Get runner registration command with newly created token
     #[clap(name = "command")]
     Command,
 }

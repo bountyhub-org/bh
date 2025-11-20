@@ -213,9 +213,9 @@ impl JobArtifact {
 #[derive(Subcommand, Debug, Clone)]
 enum Scan {
     Dispatch {
-        #[clap(short, long, env = "BOUNTYHUB_REVISION_ID")]
+        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
         #[clap(required = true)]
-        revision_id: Uuid,
+        workflow_id: Uuid,
 
         #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
         #[clap(required = true)]
@@ -249,7 +249,7 @@ impl Scan {
     {
         match self {
             Scan::Dispatch {
-                revision_id,
+                workflow_id,
                 scan_name,
                 input_string,
                 input_bool,
@@ -293,7 +293,7 @@ impl Scan {
                 };
 
                 client
-                    .dispatch_scan(revision_id, scan_name, inputs)
+                    .dispatch_scan(workflow_id, scan_name, inputs)
                     .change_context(CliError)
                     .attach_printable("Failed to dispatch scan")
             }
@@ -427,7 +427,7 @@ mod job_tests {
     fn test_dispatch_call_no_inputs() {
         let revision_id = Uuid::now_v7();
         let cmd = Scan::Dispatch {
-            revision_id,
+            workflow_id: revision_id,
             scan_name: "example".to_string(),
             input_string: None,
             input_bool: None,
@@ -452,7 +452,7 @@ mod job_tests {
     fn test_dispatch_call_with_inputs() {
         let revision_id = Uuid::now_v7();
         let cmd = Scan::Dispatch {
-            revision_id,
+            workflow_id: revision_id,
             scan_name: "example".to_string(),
             input_string: Some(vec!["s_key=s_val".to_string()]),
             input_bool: Some(vec!["b_key=true".to_string()]),

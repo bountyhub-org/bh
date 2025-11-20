@@ -49,6 +49,9 @@ enum Commands {
     #[command(subcommand)]
     Blob(Blob),
 
+    #[command(subcommand)]
+    Runner(Runner),
+
     /// Shell completion commands
     #[command(arg_required_else_help = true)]
     Completion(Completion),
@@ -66,6 +69,7 @@ impl Commands {
             Commands::Completion(_) => unreachable!(),
             Commands::Job(job) => job.run(client)?,
             Commands::Scan(scan) => scan.run(client)?,
+            Commands::Runner(runner) => runner.run(client)?,
             Commands::Blob(blob) => blob.run(client)?,
         }
 
@@ -369,6 +373,65 @@ impl Blob {
                     .upload_blob_file(freader, dst.as_str())
                     .change_context(CliError)
                     .attach_printable("failed to call upload blob file")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum Runner {
+    #[command(subcommand)]
+    Registration(RunnerRegistration),
+}
+
+impl Runner {
+    fn run<C>(self, client: C) -> Result<(), CliError>
+    where
+        C: Client,
+    {
+        match self {
+            Runner::Registration(registration) => registration.run(client)?,
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum RunnerRegistration {
+    #[clap(name = "token")]
+    Token,
+
+    #[clap(name = "command")]
+    Command,
+}
+
+impl RunnerRegistration {
+    fn run<C>(self, client: C) -> Result<(), CliError>
+    where
+        C: Client,
+    {
+        match self {
+            RunnerRegistration::Token => {
+                let resp = client
+                    .create_runner_registration()
+                    .change_context(CliError)
+                    .attach_printable("Failed to create runner registration")?;
+
+                print!("{}", resp.token);
+            }
+            RunnerRegistration::Command => {
+                let resp = client
+                    .create_runner_registration()
+                    .change_context(CliError)
+                    .attach_printable("Failed to create runner registration")?;
+
+                println!(
+                    r#"runner configure --token "{}" --url "{}""#,
+                    resp.token, resp.url,
+                );
             }
         }
 

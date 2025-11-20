@@ -2,7 +2,7 @@ use error_stack::{Context, Report, Result, ResultExt};
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
@@ -23,6 +23,12 @@ pub struct DispatchScanRequest {
 #[serde(rename_all = "camelCase")]
 pub struct UploadBlobFileRequest {
     pub path: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RunnerRegistrationResponse {
+    pub url: String,
+    pub token: String,
 }
 
 #[cfg_attr(test, automock)]
@@ -50,6 +56,8 @@ pub trait Client {
     ) -> Result<Box<dyn Read + Send + Sync + 'static>, ClientError>;
 
     fn upload_blob_file(&self, file: File, dst: &str) -> Result<(), ClientError>;
+
+    fn create_runner_registration(&self) -> Result<RunnerRegistrationResponse, ClientError>;
 }
 
 pub struct HTTPClient {
@@ -241,6 +249,21 @@ impl Client for HTTPClient {
             .attach_printable("failed to send file")?;
 
         Ok(())
+    }
+
+    fn create_runner_registration(&self) -> Result<RunnerRegistrationResponse, ClientError> {
+        let url = format!("{0}/api/v0/runner-registrations", self.bountyhub_domain);
+
+        self.bountyhub_agent
+            .post(url.as_str())
+            .header("Authorization", self.authorization.as_str())
+            .send_json(json!({}))
+            .change_context(ClientError)
+            .attach_printable("Failed to create runner registration")?
+            .body_mut()
+            .read_json()
+            .change_context(ClientError)
+            .attach_printable("Failed to parse response")
     }
 }
 

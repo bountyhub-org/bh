@@ -2,7 +2,7 @@ use crate::client::{Client, HTTPClient};
 use crate::validation;
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{Shell, generate};
-use error_stack::{Context, Report, Result, ResultExt};
+use error_stack::{Report, ResultExt};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -16,8 +16,10 @@ pub struct Cli {
     command: Option<Commands>,
 }
 
+type Result<T> = std::result::Result<T, Report<CliError>>;
+
 impl Cli {
-    pub fn run() -> Result<(), CliError> {
+    pub fn run() -> Result<()> {
         let cli = Cli::parse();
 
         match cli.command {
@@ -58,7 +60,7 @@ enum Commands {
 }
 
 impl Commands {
-    fn run(self) -> Result<(), CliError> {
+    fn run(self) -> Result<()> {
         if let Commands::Completion(completion) = self {
             completion.run()?;
             return Ok(());
@@ -77,7 +79,7 @@ impl Commands {
     }
 }
 
-fn new_client() -> Result<HTTPClient, CliError> {
+fn new_client() -> Result<HTTPClient> {
     let pat = match env::var("BOUNTYHUB_TOKEN") {
         Ok(token) => {
             if !token.starts_with("bhv") {
@@ -113,7 +115,7 @@ enum Job {
 }
 
 impl Job {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -162,7 +164,7 @@ pub enum JobArtifact {
 }
 
 impl JobArtifact {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -233,7 +235,7 @@ enum Scan {
     },
 }
 
-fn split_input(input: &str) -> Result<(&str, &str), CliError> {
+fn split_input(input: &str) -> Result<(&str, &str)> {
     let split = input.splitn(2, '=');
     let mut k = split.take(2);
     Ok((
@@ -247,7 +249,7 @@ fn split_input(input: &str) -> Result<(&str, &str), CliError> {
 }
 
 impl Scan {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -327,7 +329,7 @@ enum Blob {
 }
 
 impl Blob {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -387,7 +389,7 @@ enum Runner {
 }
 
 impl Runner {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -409,7 +411,7 @@ enum RunnerRegistration {
 }
 
 impl RunnerRegistration {
-    fn run<C>(self, client: C) -> Result<(), CliError>
+    fn run<C>(self, client: C) -> Result<()>
     where
         C: Client,
     {
@@ -590,7 +592,7 @@ struct Completion {
 }
 
 impl Completion {
-    fn run(&self) -> Result<(), CliError> {
+    fn run(&self) -> Result<()> {
         let mut cmd = Cli::command();
         let name = cmd.get_name().to_string();
 
@@ -609,4 +611,4 @@ impl fmt::Display for CliError {
     }
 }
 
-impl Context for CliError {}
+impl std::error::Error for CliError {}

@@ -15,17 +15,17 @@ concurrency:
 
 jobs:
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     name: stable / fmt
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - run: cargo fmt --check
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     name: ${{ matrix.toolchain }} / clippy
     permissions:
       contents: read
@@ -35,7 +35,7 @@ jobs:
       matrix:
         toolchain: [stable, beta]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
@@ -45,28 +45,28 @@ jobs:
         uses: giraffate/clippy-action@v1
         with:
           reporter: github-pr-check
-  
+
   md-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     name: stable / md-docs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
       - name: Generate md docs
         run: cargo run --bin bh -- md docs > docs/CLI.md
-      
+
       - name: Check if new docs were generated
         run: |
           git diff --exit-code
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
         toolchain: [stable, beta]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:

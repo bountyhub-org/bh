@@ -56,6 +56,7 @@ enum Commands {
     #[command(subcommand)]
     Runner(Runner),
 
+    /// Markdown related commands
     #[command(subcommand)]
     Md(Md),
 

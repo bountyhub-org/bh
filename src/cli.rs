@@ -56,6 +56,9 @@ enum Commands {
     #[command(subcommand)]
     Runner(Runner),
 
+    #[command(subcommand)]
+    Md(Md),
+
     /// Shell completion commands
     #[command(arg_required_else_help = true)]
     Completion(Completion),
@@ -63,18 +66,25 @@ enum Commands {
 
 impl Commands {
     fn run(self) -> Result<()> {
-        if let Commands::Completion(completion) = self {
-            completion.run()?;
-            return Ok(());
-        }
-
-        let client = new_client()?;
         match self {
-            Commands::Completion(_) => unreachable!(),
-            Commands::Job(job) => job.run(client)?,
-            Commands::Scan(scan) => scan.run(client)?,
-            Commands::Runner(runner) => runner.run(client)?,
-            Commands::Blob(blob) => blob.run(client)?,
+            Commands::Md(md) => md.run()?,
+            Commands::Completion(completion) => completion.run()?,
+            Commands::Job(job) => {
+                let client = new_client()?;
+                job.run(client)?
+            }
+            Commands::Scan(scan) => {
+                let client = new_client()?;
+                scan.run(client)?
+            }
+            Commands::Runner(runner) => {
+                let client = new_client()?;
+                runner.run(client)?
+            }
+            Commands::Blob(blob) => {
+                let client = new_client()?;
+                blob.run(client)?
+            }
         }
 
         Ok(())
@@ -592,6 +602,23 @@ mod job_tests {
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");
+    }
+}
+
+#[derive(Subcommand, Debug)]
+enum Md {
+    #[command(about = "Generate markdown documentation for the CLI")]
+    Docs,
+}
+
+impl Md {
+    fn run(&self) -> Result<()> {
+        match self {
+            Md::Docs => {
+                clap_markdown::print_help_markdown::<Cli>();
+            }
+        }
+        Ok(())
     }
 }
 

@@ -75,6 +75,7 @@ name = "bh"
 version = "0.6.0"
 dependencies = [
  "clap",
+ "clap-markdown",
  "clap_complete",
  "error-stack",
  "mockall",
@@ -133,6 +134,15 @@ checksum = "c9e340e012a1bf4935f5282ed1436d1489548e8f72308207ea5df0e23d2d03f8"
 dependencies = [
  "clap_builder",
  "clap_derive",
+]
+
+[[package]]
+name = "clap-markdown"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2a2617956a06d4885b490697b5307ebb09fec10b088afc18c81762d848c2339"
+dependencies = [
+ "clap",
 ]
 
 [[package]]

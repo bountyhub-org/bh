@@ -45,6 +45,20 @@ jobs:
         uses: giraffate/clippy-action@v1
         with:
           reporter: github-pr-check
+  
+  md-docs:
+    runs-on: ubuntu-latest
+    name: stable / md-docs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Generate md docs
+        run: cargo run --bin bh -- md docs > docs/CLI.md
+      
+      - name: Check if new docs were generated
+        run: |
+          git diff --exit-code
   tests:
     runs-on: ubuntu-latest
     name: ubuntu / ${{ matrix.toolchain }}

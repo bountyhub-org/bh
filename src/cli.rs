@@ -109,11 +109,11 @@ enum Job {
     Artifact(JobArtifact),
 
     /// Delete a job
-    #[clap(name = "delete")]
-    #[clap(about = "Delete a job")]
+    #[command(name = "delete")]
+    #[command(about = "Delete a job")]
     Delete {
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[arg(required = true)]
         job_id: Uuid,
     },
 }
@@ -139,32 +139,32 @@ impl Job {
 #[derive(Subcommand, Debug, Clone)]
 pub enum JobArtifact {
     /// Download an artifact uploaded by a job
-    #[clap(name = "download")]
-    #[clap(about = "Download a file from the internet")]
+    #[command(name = "download")]
+    #[command(about = "Download a file from the internet")]
     Download {
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[arg(required = true)]
         job_id: Uuid,
 
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
+        #[arg(required = true)]
         artifact_name: String,
 
-        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
+        #[arg(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
     },
 
     /// Delete job artifact
-    #[clap(name = "delete")]
-    #[clap(about = "Delete job artifact")]
+    #[command(name = "delete")]
+    #[command(about = "Delete job artifact")]
     Delete {
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ID")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_JOB_ID")]
+        #[arg(required = true)]
         job_id: Uuid,
 
-        #[clap(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
+        #[arg(required = true)]
         artifact_name: String,
     },
 }
@@ -226,18 +226,16 @@ impl JobArtifact {
 enum Scan {
     /// Dispatch a scan from the latest revision of the workflow
     Dispatch {
-        #[clap(short, long, env = "BOUNTYHUB_WORKFLOW_ID")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_WORKFLOW_ID", required = true)]
         workflow_id: Uuid,
 
-        #[clap(short, long, env = "BOUNTYHUB_SCAN_NAME")]
-        #[clap(required = true)]
+        #[arg(short, long, env = "BOUNTYHUB_SCAN_NAME", required = true)]
         scan_name: String,
 
-        #[clap(long)]
+        #[arg(long)]
         input_string: Option<Vec<String>>,
 
-        #[clap(long)]
+        #[arg(long)]
         input_bool: Option<Vec<String>>,
     },
 }
@@ -318,21 +316,21 @@ impl Scan {
 enum Blob {
     /// Download a file from bountyhub.org blob storage
     Download {
-        #[clap(short, long, required = true)]
+        #[arg(short, long, required = true)]
         src: String,
-        #[clap(short, long, env = "BOUNTYHUB_OUTPUT")]
+        #[arg(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
         dst: Option<String>,
     },
     /// Upload a file to bountyhub.org blob storage
     Upload {
         /// src is the source file on the local filesystem
-        #[clap(short, long, required = true)]
+        #[arg(short, long, required = true)]
         #[arg(value_hint = ValueHint::DirPath)]
         src: String,
 
         /// dst is the destination path on bountyhub.org blobs
-        #[clap(long, required = true)]
+        #[arg(long, required = true)]
         dst: String,
     },
 }
@@ -414,11 +412,11 @@ impl Runner {
 #[derive(Subcommand, Debug, Clone)]
 enum RunnerRegistration {
     /// Get newly created runner registration token
-    #[clap(name = "token")]
+    #[command(name = "token")]
     Token,
 
     /// Get runner registration command with newly created token
-    #[clap(name = "command")]
+    #[command(name = "command")]
     Command,
 }
 

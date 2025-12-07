@@ -3,16 +3,16 @@ name: Release
 on:
   push:
     tags:
-    - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: write
 
 jobs:
   create-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set release version
         run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
@@ -28,7 +28,6 @@ jobs:
             exit 1
           fi
 
-
       - name: Run tests
         run: cargo test --verbose
 
@@ -41,18 +40,18 @@ jobs:
 
   build-release:
     needs:
-    - create-release
+      - create-release
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-slim
             rust: stable
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install rust
         uses: dtolnay/rust-toolchain@master
@@ -89,4 +88,3 @@ jobs:
         run: |
           version="${{ needs.create-release.outputs.version }}"
           gh release upload "$version" "$ASSET" "$ASSET_SUM"
-

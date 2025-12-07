@@ -35,7 +35,7 @@ BountyHub CLI
 * `scan` — Scan related commands
 * `blob` — Blob related commands
 * `runner` — Runner related commands
-* `md` — 
+* `md` — Markdown related commands
 * `completion` — Shell completion commands
 
 
@@ -213,6 +213,8 @@ Get runner registration command with newly created token
 
 
 ## `bh md`
+
+Markdown related commands
 
 **Usage:** `bh md <COMMAND>`
 

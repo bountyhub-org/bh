@@ -1,13 +1,14 @@
-use crate::client::{Client, HTTPClient};
+use crate::client::{Client, Error, HTTPClient};
 use crate::validation;
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{Shell, generate};
-use error_stack::{Report, ResultExt};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::{env, fmt, fs, io};
+use std::{env, fs, io};
 use uuid::Uuid;
+
+type Result<T> = std::result::Result<T, String>;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -16,8 +17,6 @@ pub struct Cli {
     command: Option<Commands>,
 }
 
-type Result<T> = std::result::Result<T, Report<CliError>>;
-
 impl Cli {
     pub fn run() -> Result<()> {
         let cli = Cli::parse();
@@ -25,10 +24,7 @@ impl Cli {
         match cli.command {
             Some(command) => command.run()?,
             None => {
-                Cli::command()
-                    .print_help()
-                    .change_context(CliError)
-                    .attach("Failed to print help")?;
+                Cli::command().print_help().expect("Failed to print help");
             }
         }
 
@@ -56,6 +52,10 @@ enum Commands {
     #[command(subcommand)]
     Runner(Runner),
 
+    /// Bhlast related commands
+    #[command(subcommand)]
+    Bhlast(Bhlast),
+
     /// Markdown related commands
     #[command(subcommand)]
     Md(Md),
@@ -82,6 +82,10 @@ impl Commands {
                 let client = new_client()?;
                 runner.run(client)?
             }
+            Commands::Bhlast(bhlast) => {
+                let client = new_client()?;
+                bhlast.run(client)?
+            }
             Commands::Blob(blob) => {
                 let client = new_client()?;
                 blob.run(client)?
@@ -96,14 +100,12 @@ fn new_client() -> Result<HTTPClient> {
     let pat = match env::var("BOUNTYHUB_TOKEN") {
         Ok(token) => {
             if !token.starts_with("bhv") {
-                return Err(CliError)
-                    .attach("Invalid token format")
-                    .attach("token does not start with bhv");
+                return Err("Invalid token format: token does not start with bhv".to_string());
             }
             token
         }
         Err(err) => {
-            return Err(CliError).attach(format!("Failed to get token: {:?}", err));
+            return Err(format!("Failed to get BOUNTYHUB_TOKEN: {:?}", err));
         }
     };
 
@@ -138,8 +140,8 @@ impl Job {
             Job::Delete { job_id } => {
                 client
                     .delete_job(job_id)
-                    .change_context(CliError)
-                    .attach("Failed to delete job")?;
+                    .map_err(|e| format!("failed to delete job: {e:?}"))?;
+
                 Ok(())
             }
             Job::Artifact(artifact) => artifact.run(client),
@@ -201,23 +203,19 @@ impl JobArtifact {
                         }
                     }
                     None => env::current_dir()
-                        .change_context(CliError)
-                        .attach("Failed to get current directory")?
+                        .map_err(|err| format!("Failed to get current directory: {err:?}"))?
                         .join(&artifact_name),
                 };
 
                 let mut freader = client
                     .download_job_artifact(job_id, &artifact_name)
-                    .change_context(CliError)
-                    .attach("Failed to download file")?;
+                    .map_err(|err| format!("Failed to download file: {err:?}"))?;
 
                 let mut fwriter = fs::File::create(output)
-                    .change_context(CliError)
-                    .attach("Failed to create file")?;
+                    .map_err(|err| format!("Failed to create file: {err:?}"))?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
-                    .change_context(CliError)
-                    .attach("failed to write file")?;
+                    .map_err(|err| format!("failed to write file: {err:?}"))?;
             }
             JobArtifact::Delete {
                 job_id,
@@ -225,8 +223,7 @@ impl JobArtifact {
             } => {
                 client
                     .delete_job_artifact(job_id, &artifact_name)
-                    .change_context(CliError)
-                    .attach("failed to delete job artifact")?;
+                    .map_err(|err| format!("failed to delete job artifact: {err:?}"))?;
             }
         }
         Ok(())
@@ -255,12 +252,9 @@ fn split_input(input: &str) -> Result<(&str, &str)> {
     let split = input.splitn(2, '=');
     let mut k = split.take(2);
     Ok((
+        k.next().ok_or("Failed to get the key from string input")?,
         k.next()
-            .ok_or(CliError)
-            .attach(format!("failed to get the key from string input {input}"))?,
-        k.next()
-            .ok_or(CliError)
-            .attach(format!("failed to get the value from string input {input}"))?,
+            .ok_or("Failed to get the value from string input")?,
     ))
 }
 
@@ -277,7 +271,7 @@ impl Scan {
                 input_bool,
             } => {
                 if !validation::valid_scan_name(&scan_name) {
-                    return Err(Report::new(CliError).attach("invalid scan name"));
+                    return Err(format!("Invalid scan name: '{scan_name}'"));
                 }
 
                 let inputs = if input_string.is_some() || input_bool.is_some() {
@@ -287,8 +281,7 @@ impl Scan {
                         for v in input_string {
                             let (k, v) = split_input(v.as_str())?;
                             if !validation::valid_workflow_var_key(k) {
-                                return Err(Report::new(CliError)
-                                    .attach(format!("Key {k} is in invalid format")));
+                                return Err(format!("Key '{k}' is in invalid format"));
                             }
                             m.insert(k.to_string(), Value::String(v.to_string()));
                         }
@@ -298,13 +291,11 @@ impl Scan {
                         for v in input_bool {
                             let (k, v) = split_input(v.as_str())?;
                             if !validation::valid_workflow_var_key(k) {
-                                return Err(Report::new(CliError)
-                                    .attach(format!("Key {k} is in invalid format")));
+                                return Err(format!("Key '{k}' is in invalid format"));
                             }
                             let b = v
                                 .parse::<bool>()
-                                .change_context(CliError)
-                                .attach("value is not bool")?;
+                                .map_err(|_| format!("Value '{v}' is not a valid boolean"))?;
                             m.insert(k.to_string(), Value::Bool(b));
                         }
                     }
@@ -316,8 +307,9 @@ impl Scan {
 
                 client
                     .dispatch_scan(workflow_id, scan_name, inputs)
-                    .change_context(CliError)
-                    .attach("Failed to dispatch scan")
+                    .map_err(|e| format!("failed to dispatch scan: {e:?}"))?;
+
+                Ok(())
             }
         }
     }
@@ -366,37 +358,31 @@ impl Blob {
                         }
                     }
                     None => env::current_dir()
-                        .change_context(CliError)
-                        .attach("Failed to get current directory")?
+                        .map_err(|err| format!("Failed to get current directory: {err:?}"))?
                         .join(Path::new(&path).file_name().unwrap_or_default()),
                 };
 
                 let mut freader = client
                     .download_blob_file(&path)
-                    .change_context(CliError)
-                    .attach("Failed to download file")?;
+                    .map_err(|err| format!("Failed to download file: {err:?}"))?;
 
                 let mut fwriter = fs::File::create(output)
-                    .change_context(CliError)
-                    .attach("Failed to create file")?;
+                    .map_err(|err| format!("Failed to create output file: {err:?}"))?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
-                    .change_context(CliError)
-                    .attach("failed to write file")?;
+                    .map_err(|err| format!("Failed to write to output: {err:?}"))?;
+                Ok(())
             }
             Blob::Upload { src, dst } => {
                 let freader = fs::File::open(&src)
-                    .change_context(CliError)
-                    .attach(format!("failed to open file '{src}'"))?;
+                    .map_err(|err| format!("Failed to open file '{src}': {err:?}"))?;
 
                 client
                     .upload_blob_file(freader, dst.as_str())
-                    .change_context(CliError)
-                    .attach("failed to call upload blob file")?;
+                    .map_err(|err| format!("Failed to upload blob file: {err:?}"))?;
+                Ok(())
             }
         }
-
-        Ok(())
     }
 }
 
@@ -440,16 +426,14 @@ impl RunnerRegistration {
             RunnerRegistration::Token => {
                 let resp = client
                     .create_runner_registration()
-                    .change_context(CliError)
-                    .attach("Failed to create runner registration")?;
+                    .map_err(|err| format!("Failed to create runner registration: {err:?}"))?;
 
                 print!("{}", resp.token);
             }
             RunnerRegistration::Command => {
                 let resp = client
                     .create_runner_registration()
-                    .change_context(CliError)
-                    .attach("Failed to create runner registration")?;
+                    .map_err(|err| format!("Failed to create runner registration: {err:?}"))?;
 
                 println!(
                     r#"runner configure --token "{}" --url "{}""#,
@@ -465,8 +449,7 @@ impl RunnerRegistration {
 #[cfg(test)]
 mod job_tests {
     use super::*;
-    use crate::client::{ClientError, MockClient};
-    use error_stack::Report;
+    use crate::client::{Error as ClientError, MockClient};
     use mockall::predicate::*;
     use serde_json::Value;
     use uuid::Uuid;
@@ -486,7 +469,7 @@ mod job_tests {
             .expect_download_job_artifact()
             .with(eq(job_id), eq(artifact_name))
             .times(1)
-            .returning(|_, _| Err(Report::new(ClientError)));
+            .returning(|_, _| Err(ClientError::Unauthorized));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");
@@ -599,10 +582,44 @@ mod job_tests {
             .expect_download_blob_file()
             .with(function(|v| v == "file.txt"))
             .times(1)
-            .returning(|_| Err(Report::new(ClientError)));
+            .returning(|_| Err(ClientError::NotFound));
 
         let result = cmd.run(client);
         assert!(result.is_err(), "expected error, got ok");
+    }
+}
+
+#[derive(Subcommand, Debug)]
+enum Bhlast {
+    #[command(about = "Create a new bhlast server")]
+    Create,
+}
+
+impl Bhlast {
+    fn run<C>(self, client: C) -> Result<()>
+    where
+        C: Client,
+    {
+        match self {
+            Bhlast::Create => {
+                match client.create_bhlast_domain() {
+                    Ok(id) => {
+                        println!("{}", id);
+                    }
+                    Err(Error::Forbidden) => {
+                        return Err("You cannot create more bhlast domains".to_string());
+                    }
+                    Err(Error::Unauthorized) => {
+                        return Err("Unauthorized: invalid token".to_string());
+                    }
+                    Err(e) => {
+                        return Err(format!("Failed to create bhlast domain: {e:?}"));
+                    }
+                }
+
+                Ok(())
+            }
+        }
     }
 }
 
@@ -639,14 +656,3 @@ impl Completion {
         Ok(())
     }
 }
-
-#[derive(Debug)]
-pub struct CliError;
-
-impl fmt::Display for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "An error occurred while running the CLI")
-    }
-}
-
-impl std::error::Error for CliError {}

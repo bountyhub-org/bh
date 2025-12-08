@@ -19,6 +19,8 @@ This document contains the help content for the `bh` command-line program.
 * [`bh runner registration`↴](#bh-runner-registration)
 * [`bh runner registration token`↴](#bh-runner-registration-token)
 * [`bh runner registration command`↴](#bh-runner-registration-command)
+* [`bh bhlast`↴](#bh-bhlast)
+* [`bh bhlast create`↴](#bh-bhlast-create)
 * [`bh md`↴](#bh-md)
 * [`bh md docs`↴](#bh-md-docs)
 * [`bh completion`↴](#bh-completion)
@@ -35,6 +37,7 @@ BountyHub CLI
 * `scan` — Scan related commands
 * `blob` — Blob related commands
 * `runner` — Runner related commands
+* `bhlast` — Bhlast related commands
 * `md` — Markdown related commands
 * `completion` — Shell completion commands
 
@@ -209,6 +212,26 @@ Get newly created runner registration token
 Get runner registration command with newly created token
 
 **Usage:** `bh runner registration command`
+
+
+
+## `bh bhlast`
+
+Bhlast related commands
+
+**Usage:** `bh bhlast <COMMAND>`
+
+###### **Subcommands:**
+
+* `create` — Create a new bhlast server
+
+
+
+## `bh bhlast create`
+
+Create a new bhlast server
+
+**Usage:** `bh bhlast create`
 
 
 

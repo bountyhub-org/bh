@@ -1,16 +1,44 @@
-use error_stack::{Report, ResultExt};
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig};
 use uuid::Uuid;
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Unauthorized")]
+    Unauthorized,
+    #[error("Forbidden")]
+    Forbidden,
+    #[error("Not Found")]
+    NotFound,
+    #[error("Conflict")]
+    Conflict,
+    #[error("Error: $0")]
+    Generic(String),
+}
+
+impl From<ureq::Error> for Error {
+    fn from(err: ureq::Error) -> Self {
+        match err {
+            ureq::Error::StatusCode(401) => Error::Unauthorized,
+            ureq::Error::StatusCode(403) => Error::Forbidden,
+            ureq::Error::StatusCode(404) => Error::NotFound,
+            ureq::Error::StatusCode(409) => Error::Conflict,
+            err => Error::Generic(format!("{err:?}")),
+        }
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -31,7 +59,6 @@ pub struct RunnerRegistrationResponse {
     pub token: String,
 }
 
-type Result<T> = std::result::Result<T, Report<ClientError>>;
 #[cfg_attr(test, automock)]
 pub trait Client {
     fn download_job_artifact(
@@ -56,6 +83,8 @@ pub trait Client {
     fn upload_blob_file(&self, file: File, dst: &str) -> Result<()>;
 
     fn create_runner_registration(&self) -> Result<RunnerRegistrationResponse>;
+
+    fn create_bhlast_domain(&self) -> Result<String>;
 }
 
 pub struct HTTPClient {
@@ -126,20 +155,11 @@ impl Client for HTTPClient {
             .bountyhub_agent
             .get(url.as_str())
             .header("Authorization", self.authorization.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to request download")?
+            .call()?
             .body_mut()
-            .read_json()
-            .change_context(ClientError)
-            .attach("Failed to parse response")?;
+            .read_json()?;
 
-        let res = self
-            .file_agent
-            .get(url.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to download file")?;
+        let res = self.file_agent.get(url.as_str()).call()?;
 
         Ok(Box::new(res.into_body().into_reader()))
     }
@@ -153,9 +173,7 @@ impl Client for HTTPClient {
         self.bountyhub_agent
             .delete(url)
             .header("Authorization", self.authorization.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to delete artifact")?;
+            .call()?;
 
         Ok(())
     }
@@ -166,9 +184,7 @@ impl Client for HTTPClient {
         self.bountyhub_agent
             .delete(url.as_str())
             .header("Authorization", self.authorization.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to delete job")?;
+            .call()?;
         Ok(())
     }
 
@@ -183,18 +199,12 @@ impl Client for HTTPClient {
             self.bountyhub_domain
         );
 
-        match self
-            .bountyhub_agent
+        self.bountyhub_agent
             .post(url.as_str())
             .header("Authorization", self.authorization.as_str())
-            .send_json(DispatchScanRequest { scan_name, inputs })
-        {
-            Ok(_) => Ok(()),
-            Err(ureq::Error::StatusCode(409)) => {
-                Err(Report::new(ClientError).attach("Scan is already scheduled"))
-            }
-            Err(e) => Err(Report::new(ClientError).attach(e.to_string())),
-        }
+            .send_json(DispatchScanRequest { scan_name, inputs })?;
+
+        Ok(())
     }
 
     fn download_blob_file(&self, path: &str) -> Result<Box<dyn Read + Send + Sync + 'static>> {
@@ -203,20 +213,11 @@ impl Client for HTTPClient {
             .bountyhub_agent
             .get(url.as_str())
             .header("Authorization", self.authorization.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to request download")?
+            .call()?
             .body_mut()
-            .read_json()
-            .change_context(ClientError)
-            .attach("Failed to parse response")?;
+            .read_json()?;
 
-        let res = self
-            .file_agent
-            .get(url.as_str())
-            .call()
-            .change_context(ClientError)
-            .attach("Failed to download file")?;
+        let res = self.file_agent.get(url.as_str()).call()?;
 
         Ok(Box::new(res.into_body().into_reader()))
     }
@@ -229,19 +230,11 @@ impl Client for HTTPClient {
             .header("Authorization", self.authorization.as_str())
             .send_json(UploadBlobFileRequest {
                 path: dst.to_string(),
-            })
-            .change_context(ClientError)
-            .attach("failed to create upload link")?
+            })?
             .body_mut()
-            .read_json()
-            .change_context(ClientError)
-            .attach("failed to parse response")?;
+            .read_json()?;
 
-        self.file_agent
-            .put(&url)
-            .send(file)
-            .change_context(ClientError)
-            .attach("failed to send file")?;
+        self.file_agent.put(&url).send(file)?;
 
         Ok(())
     }
@@ -249,16 +242,27 @@ impl Client for HTTPClient {
     fn create_runner_registration(&self) -> Result<RunnerRegistrationResponse> {
         let url = format!("{0}/api/v0/runner-registrations", self.bountyhub_domain);
 
-        self.bountyhub_agent
+        Ok(self
+            .bountyhub_agent
             .post(url.as_str())
             .header("Authorization", self.authorization.as_str())
-            .send_json(json!({}))
-            .change_context(ClientError)
-            .attach("Failed to create runner registration")?
+            .send_json(json!({}))?
             .body_mut()
-            .read_json()
-            .change_context(ClientError)
-            .attach("Failed to parse response")
+            .read_json()?)
+    }
+
+    fn create_bhlast_domain(&self) -> Result<String> {
+        let url = format!("{0}/api/v0/bhlast/domains", self.bountyhub_domain);
+
+        let CreatedResponse { id } = self
+            .bountyhub_agent
+            .post(url.as_str())
+            .header("Authorization", self.authorization.as_str())
+            .send_json(json!({}))?
+            .body_mut()
+            .read_json()?;
+
+        Ok(id)
     }
 }
 
@@ -266,18 +270,12 @@ fn encode(s: &str) -> String {
     percent_encoding::percent_encode(s.as_bytes(), percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
-#[derive(Debug)]
-pub struct ClientError;
-
-impl fmt::Display for ClientError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Client error")
-    }
-}
-
-impl core::error::Error for ClientError {}
-
 #[derive(Deserialize, Debug)]
 struct UrlResponse {
     url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct CreatedResponse {
+    id: String,
 }

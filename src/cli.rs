@@ -166,6 +166,9 @@ pub enum JobArtifact {
         #[arg(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
+
+        #[arg(long, default_value_t = false)]
+        unzip: bool,
     },
 
     /// Delete job artifact
@@ -192,6 +195,7 @@ impl JobArtifact {
                 job_id,
                 artifact_name,
                 output,
+                unzip,
             } => {
                 let output = match output {
                     Some(output) => {
@@ -211,11 +215,25 @@ impl JobArtifact {
                     .download_job_artifact(job_id, &artifact_name)
                     .map_err(|err| format!("Failed to download file: {err:?}"))?;
 
-                let mut fwriter = fs::File::create(output)
+                let mut fwriter = fs::File::create(&output)
                     .map_err(|err| format!("Failed to create file: {err:?}"))?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
                     .map_err(|err| format!("failed to write file: {err:?}"))?;
+
+                if unzip {
+                    let file = fs::File::open(&artifact_name)
+                        .map_err(|err| format!("Failed to open file for unzip: {err:?}"))?;
+                    let mut archive = zip::ZipArchive::new(file)
+                        .map_err(|err| format!("Failed to read zip archive: {err:?}"))?;
+                    archive
+                        .extract(
+                            output
+                                .parent()
+                                .ok_or("Failed to get parent directory for unzip")?,
+                        )
+                        .map_err(|err| format!("Failed to extract zip archive: {err:?}"))?;
+                }
             }
             JobArtifact::Delete {
                 job_id,

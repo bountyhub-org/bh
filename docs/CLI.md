@@ -77,9 +77,12 @@ Download a file from the internet
 
 ###### **Options:**
 
-* `-j`, `--job-id <JOB_ID>`
-* `-a`, `--artifact-name <ARTIFACT_NAME>`
-* `-o`, `--output <OUTPUT>`
+* `-j`, `--job-id <JOB_ID>` — The ID of the job to download the artifact from
+* `-a`, `--artifact-name <ARTIFACT_NAME>` — Name of the artifact to download This is the name given when the artifact was uploaded
+* `-o`, `--output <OUTPUT>` — Directory where the output should be downloaded to. The artifact will be saved at `{output}/{artifact_name}` If unzip is set, the artifact will be unzipped into the output directory. If not set, the downloaded artifact will not be unzipped
+* `--unzip` — Unzip the downloaded artifact to the output directory The zipped file will **not** be removed after unzipping
+
+  Default value: `false`
 
 
 

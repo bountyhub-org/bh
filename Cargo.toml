@@ -24,7 +24,7 @@ zip = "7"
 
 [dev-dependencies]
 uuid = { version = "^1", features = ["v7"] }
-mockall = "^0.13"
+mockall = "^0.14"
 
 [profile.release]
 codegen-units = 1

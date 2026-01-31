@@ -494,6 +494,7 @@ mod job_tests {
             job_id,
             artifact_name: artifact_name.to_string(),
             output: None,
+            unzip: false,
         };
         let mut client = MockClient::new();
         client

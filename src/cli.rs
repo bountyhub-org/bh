@@ -155,17 +155,29 @@ pub enum JobArtifact {
     #[command(name = "download")]
     #[command(about = "Download a file from the internet")]
     Download {
+        /// The ID of the job to download the artifact from
         #[arg(short, long, env = "BOUNTYHUB_JOB_ID")]
         #[arg(required = true)]
         job_id: Uuid,
 
+        /// Name of the artifact to download
+        /// This is the name given when the artifact was uploaded
         #[arg(short, long, env = "BOUNTYHUB_JOB_ARTIFACT_NAME")]
         #[arg(required = true)]
         artifact_name: String,
 
+        /// Directory where the output should be downloaded to.
+        /// The artifact will be saved at `{output}/{artifact_name}`
+        /// If unzip is set, the artifact will be unzipped into the output directory.
+        /// If not set, the downloaded artifact will not be unzipped.
         #[arg(short, long, env = "BOUNTYHUB_OUTPUT")]
         #[arg(value_hint = ValueHint::DirPath)]
         output: Option<String>,
+
+        /// Unzip the downloaded artifact to the output directory
+        /// The zipped file will **not** be removed after unzipping.
+        #[arg(long, default_value_t = false)]
+        unzip: bool,
     },
 
     /// Delete job artifact
@@ -192,6 +204,7 @@ impl JobArtifact {
                 job_id,
                 artifact_name,
                 output,
+                unzip,
             } => {
                 let output = match output {
                     Some(output) => {
@@ -207,15 +220,33 @@ impl JobArtifact {
                         .join(&artifact_name),
                 };
 
+                println!("Downloading artifact to {output:?}");
+
                 let mut freader = client
                     .download_job_artifact(job_id, &artifact_name)
                     .map_err(|err| format!("Failed to download file: {err:?}"))?;
 
-                let mut fwriter = fs::File::create(output)
+                let mut fwriter = fs::File::create(&output)
                     .map_err(|err| format!("Failed to create file: {err:?}"))?;
 
                 std::io::copy(&mut *freader, &mut fwriter)
                     .map_err(|err| format!("failed to write file: {err:?}"))?;
+
+                if unzip {
+                    let file = fs::File::open(&output)
+                        .map_err(|err| format!("Failed to open file for unzip: {err:?}"))?;
+                    let mut archive = zip::ZipArchive::new(file)
+                        .map_err(|err| format!("Failed to read zip archive: {err:?}"))?;
+                    archive
+                        .extract(
+                            output
+                                .parent()
+                                .ok_or("Failed to get parent directory for unzip")?,
+                        )
+                        .map_err(|err| format!("Failed to extract zip archive: {err:?}"))?;
+
+                    println!("Unzipped artifact to {output:?}");
+                }
             }
             JobArtifact::Delete {
                 job_id,
@@ -463,6 +494,7 @@ mod job_tests {
             job_id,
             artifact_name: artifact_name.to_string(),
             output: None,
+            unzip: false,
         };
         let mut client = MockClient::new();
         client

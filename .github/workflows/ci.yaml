@@ -53,8 +53,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
-      - name: Generate md docs
-        run: cargo run --bin bh -- md docs > docs/CLI.md
+      - name: Generate usage spec
+        run: cargo run --bin bh -- md docs > docs/bh.usage.kdl
 
       - name: Check if new docs were generated
         run: |

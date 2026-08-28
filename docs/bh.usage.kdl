@@ -1,0 +1,198 @@
+name bh
+bin bh
+version "0.6.0"
+about "BountyHub CLI."
+long_about #"""
+BountyHub CLI.
+
+Commands rely on `BOUNTYHUB_TOKEN` and `BOUNTYHUB_URL` environment variables. RPC commands talk to the ConnectRPC services; artifact and blob commands use the REST API.
+"""#
+unknown_flags error
+arg_required_else_help #true
+subcommand_required #true
+flag "-h --help" help="Print help" action=help builtin=#true
+flag "-V --version" help="Print version" action=version builtin=#true
+cmd job help="Job related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd artifact help="Job artifact related commands" subcommand_required=#true {
+        flag "-h --help" help="Print help" action=help builtin=#true
+        cmd download help="Download an artifact uploaded by a job" {
+            flag "-j --job-id" help="The ID of the job to download the artifact from" required=#true env=BOUNTYHUB_JOB_ID {
+                arg <JOB_ID>
+            }
+            flag "-a --artifact-name" help="Name of the artifact to download" required=#true env=BOUNTYHUB_JOB_ARTIFACT_NAME {
+                long_help #"""
+Name of the artifact to download
+
+This is the name given when the artifact was uploaded
+"""#
+                arg <ARTIFACT_NAME>
+            }
+            flag "-o --output" help="Directory where the output should be downloaded to." env=BOUNTYHUB_OUTPUT {
+                long_help #"""
+Directory where the output should be downloaded to.
+
+The artifact will be saved at `{output}/{artifact_name}`. If unzip is set, the artifact will be unzipped into the output directory. If not set, the current directory is used.
+"""#
+                arg <OUTPUT>
+            }
+            flag --unzip help="Unzip the downloaded artifact to the output directory" {
+                long_help #"""
+Unzip the downloaded artifact to the output directory
+
+The zipped file will **not** be removed after unzipping.
+"""#
+            }
+            flag "-h --help" help="Print help" action=help builtin=#true
+        }
+        cmd delete help="Delete job artifact" {
+            flag "-j --job-id" help="The ID of the job owning the artifact" required=#true env=BOUNTYHUB_JOB_ID {
+                arg <JOB_ID>
+            }
+            flag "-a --artifact-name" help="Name of the artifact to delete" required=#true env=BOUNTYHUB_JOB_ARTIFACT_NAME {
+                arg <ARTIFACT_NAME>
+            }
+            flag "-h --help" help="Print help" action=help builtin=#true
+        }
+    }
+    cmd delete help="Delete a job" {
+        flag "-j --job-id" help="The ID of the job to delete" required=#true env=BOUNTYHUB_JOB_ID {
+            arg <JOB_ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd project help="Project related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd create help="Create a project" {
+        flag "-n --name" help="Name of the project" required=#true {
+            arg <NAME>
+        }
+        flag "-d --description" help="Description of the project" required=#true {
+            arg <DESCRIPTION>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd list help="List projects" {
+        flag --page-size help="Maximum number of projects to return" {
+            arg <PAGE_SIZE>
+        }
+        flag --page-token help="Token from a previous response to fetch the next page" {
+            arg <PAGE_TOKEN>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd get help="Show a single project" {
+        flag "-i --id" help="The ID of the project" required=#true {
+            arg <ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd delete help="Delete a project" {
+        flag "-i --id" help="The ID of the project" required=#true {
+            arg <ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd activate help="Activate a project" {
+        flag "-i --id" help="The ID of the project" required=#true {
+            arg <ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd deactivate help="Deactivate a project" {
+        flag "-i --id" help="The ID of the project" required=#true {
+            arg <ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd scan help="Scan related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd dispatch help="Dispatch a scan from the latest revision of the workflow" {
+        flag "-w --workflow-id" help="The ID of the workflow to dispatch the scan for" required=#true env=BOUNTYHUB_WORKFLOW_ID {
+            arg <WORKFLOW_ID>
+        }
+        flag "-s --scan-name" help="Name of the scan to dispatch" required=#true env=BOUNTYHUB_SCAN_NAME {
+            arg <SCAN_NAME>
+        }
+        flag --input-string help="String inputs in `key=value` form, repeatable" var=#true {
+            arg <INPUT_STRING>
+        }
+        flag --input-bool help="Boolean inputs in `key=value` form, repeatable" var=#true {
+            arg <INPUT_BOOL>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd blob help="Blob related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd download help="Download a file from bountyhub.org blob storage" {
+        flag "-s --src" help="Path of the file on bountyhub.org blob storage" required=#true {
+            arg <SRC>
+        }
+        flag "-d --dst" help="Local destination path" env=BOUNTYHUB_OUTPUT {
+            arg <DST>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd upload help="Upload a file to bountyhub.org blob storage" {
+        flag "-s --src" help="Source file on the local filesystem" required=#true {
+            arg <SRC>
+        }
+        flag --dst help="Destination path on bountyhub.org blobs" required=#true {
+            arg <DST>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd runner help="Runner related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd registration help="Runner registration commands" subcommand_required=#true {
+        flag "-h --help" help="Print help" action=help builtin=#true
+        cmd token help="Get newly created runner registration token" {
+            flag "-h --help" help="Print help" action=help builtin=#true
+        }
+        cmd command help="Get runner registration command with newly created token" {
+            flag "-h --help" help="Print help" action=help builtin=#true
+        }
+    }
+    cmd list help="List runners" {
+        flag --page-size help="Maximum number of runners to return" {
+            arg <PAGE_SIZE>
+        }
+        flag --page-token help="Token from a previous response to fetch the next page" {
+            arg <PAGE_TOKEN>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+    cmd delete help="Delete a runner" {
+        flag "-i --id" help="The ID of the runner" required=#true {
+            arg <ID>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd bhlast help="Bhlast related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd create help="Create a new bhlast server" {
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd md help="Markdown related commands" subcommand_required=#true {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd docs help="Generate a usage spec (KDL) for the CLI" {
+        flag "-h --help" help="Print help" action=help builtin=#true
+    }
+}
+cmd completion help="Shell completion commands" {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <SHELL> {
+        choices {
+            choice bash
+            choice zsh
+            choice fish
+        }
+    }
+}
+

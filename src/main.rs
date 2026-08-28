@@ -1,7 +1,8 @@
 use bh::cli::Cli;
 
-fn main() {
-    if let Err(err) = Cli::run() {
+#[tokio::main]
+async fn main() {
+    if let Err(err) = Cli::run().await {
         eprintln!("Error: {err}");
         std::process::exit(1);
     }

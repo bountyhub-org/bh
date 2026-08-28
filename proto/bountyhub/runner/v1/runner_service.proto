@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package bountyhub.runner.v1;
+
+service RunnerService {
+  rpc ListRunners(ListRunnersRequest) returns (ListRunnersResponse) {}
+  rpc DeleteRunner(DeleteRunnerRequest) returns (DeleteRunnerResponse) {}
+  rpc CreateRunnerRegistration(CreateRunnerRegistrationRequest) returns (CreateRunnerRegistrationResponse) {}
+}
+
+message DeleteRunnerResponse {}
+
+message ListRunnersRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message DeleteRunnerRequest {
+  string id = 1;
+}
+
+message RunnerListItem {
+  string id = 1;
+  string name = 2;
+  Status status = 4;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_IDLE = 1;
+  STATUS_BUSY = 2;
+  STATUS_OFFLINE = 3;
+}
+
+message ListRunnersResponse {
+  repeated RunnerListItem runners = 1;
+  string next_page_token = 2;
+}
+
+message CreateRunnerRegistrationRequest {}
+
+message CreateRunnerRegistrationResponse {
+  string url = 1;
+  string token = 2;
+}

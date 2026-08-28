@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package bountyhub.project.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service ProjectService {
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {}
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse) {}
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {}
+  rpc GetProjectById(GetProjectByIdRequest) returns (GetProjectByIdResponse) {}
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {}
+  rpc GetProjectCount(GetProjectCountRequest) returns (GetProjectCountResponse) {}
+  rpc ActivateProject(ActivateProjectRequest) returns (ActivateProjectResponse) {}
+  rpc DeactivateProject(DeactivateProjectRequest) returns (DeactivateProjectResponse) {}
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UpdateProjectResponse {}
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateProjectResponse {
+  string id = 1;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+}
+
+message DeleteProjectResponse {}
+
+message ActivateProjectRequest {
+  string id = 1;
+}
+
+message ActivateProjectResponse {}
+
+message DeactivateProjectRequest {
+  string id = 1;
+}
+
+message DeactivateProjectResponse {}
+
+message ListProjectsRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}
+
+message ProjectListItem {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  Status status = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message ListProjectsResponse {
+  repeated ProjectListItem items = 1;
+  string next_page_token = 2;
+}
+
+message GetProjectByIdRequest {
+  string id = 1;
+}
+
+message GetProjectByIdResponse {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  Status status = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message GetProjectCountRequest {}
+
+message GetProjectCountResponse {
+  uint32 count = 1;
+}

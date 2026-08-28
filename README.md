@@ -10,6 +10,7 @@ and use it in your pipeline.
 
 - [Installation](#installation)
 - [Auto completion](#auto-completion)
+- [Configuration](#configuration)
 
 ## Installation
 
@@ -62,3 +63,22 @@ source <(bh completion zsh)
 ```
 
 
+
+## Configuration
+
+Commands rely on environment variables:
+
+| Variable | Description |
+| --- | --- |
+| `BOUNTYHUB_TOKEN` | Personal access token (starts with `bhv`). Required. |
+| `BOUNTYHUB_URL` | Base URL of the BountyHub REST API. Defaults to `https://bountyhub.org`. |
+| `BOUNTYHUB_CONNECT_URL` | Base URL used for ConnectRPC calls (runner, project). Defaults to `BOUNTYHUB_URL`. |
+
+The RPC commands (`runner`, `project`) speak the Connect protocol and are
+served by the generated clients from `bountyhub.runner.v1` and
+`bountyhub.project.v1` protos; artifact, blob, scan, and bhlast commands use
+the REST API under `/api/v0`.
+
+The `bh md docs` command prints the portable usage spec (KDL) for this CLI,
+which can be rendered to markdown, manpages, and completions with
+[usage-cli](https://usage.jdx.dev).
